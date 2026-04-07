@@ -404,27 +404,27 @@ export function CatalogExperience({ slug }: { slug: string }) {
   }
 
   return (
-    <main className="mx-auto w-full max-w-6xl overflow-x-hidden px-3 pb-24 pt-3 md:px-6 md:pb-8" style={themeStyle}>
-      <header className="soft-panel mb-4 rounded-2xl border border-white/40 p-4 shadow-md md:sticky md:top-3 md:z-30 md:backdrop-blur">
+    <main className="mx-auto w-full max-w-6xl px-2 pb-24 pt-2 sm:px-3 sm:pt-3 md:px-6 md:pb-8" style={themeStyle}>
+      <header className="soft-panel mb-3 rounded-2xl border border-white/40 p-3 shadow-md md:sticky md:top-3 md:z-30 md:mb-4 md:p-4 md:backdrop-blur">
         <div className="flex flex-wrap items-start gap-3 sm:items-center">
           {store?.logoUrl ? (
             <Image
               src={store.logoUrl}
               alt={store.name}
-              width={56}
-              height={56}
+              width={52}
+              height={52}
               unoptimized
-              className="h-14 w-14 rounded-full object-cover ring-2 ring-white"
+              className="h-12 w-12 rounded-full object-cover ring-2 ring-white sm:h-14 sm:w-14"
             />
           ) : (
-            <div className="grid h-14 w-14 place-items-center rounded-full bg-[var(--store-primary)] text-lg font-bold text-white">
+            <div className="grid h-12 w-12 place-items-center rounded-full bg-[var(--store-primary)] text-base font-bold text-white sm:h-14 sm:w-14 sm:text-lg">
               {store?.name?.slice(0, 2).toUpperCase() || "LG"}
             </div>
           )}
 
           <div className="min-w-0 flex-1">
-            <h1 className="truncate font-[var(--font-heading)] text-xl font-bold md:text-2xl">{store?.name ?? "Carregando loja..."}</h1>
-            <p className="truncate text-sm text-zinc-600">{store?.address ?? "Retirada no local"}</p>
+            <h1 className="truncate font-[var(--font-heading)] text-lg font-bold sm:text-xl md:text-2xl">{store?.name ?? "Carregando loja..."}</h1>
+            <p className="truncate text-xs text-zinc-600 sm:text-sm">{store?.address ?? "Retirada no local"}</p>
           </div>
 
           {canViewAdminLink ? (
@@ -435,7 +435,7 @@ export function CatalogExperience({ slug }: { slug: string }) {
         </div>
 
         <input
-          className="mt-4 w-full rounded-xl border border-zinc-300 bg-white px-4 py-3 text-sm"
+          className="mt-3 w-full rounded-xl border border-zinc-300 bg-white px-3 py-2.5 text-sm"
           placeholder="Buscar produto por nome"
           value={search}
           onChange={(event) => setSearch(event.target.value)}
@@ -460,12 +460,12 @@ export function CatalogExperience({ slug }: { slug: string }) {
         ) : null}
       </header>
 
-      <section className="mb-4 space-y-2">
+      <section className="mb-3 space-y-2 md:mb-4">
         <div className="md:hidden">
           <button
             type="button"
             onClick={() => setShowMobileCategories((prev) => !prev)}
-            className="w-full rounded-xl border border-zinc-300 bg-white px-4 py-3 text-left text-sm font-semibold text-zinc-800"
+            className="w-full rounded-xl border border-zinc-300 bg-white px-3 py-2.5 text-left text-sm font-semibold text-zinc-800"
           >
             Categorias: {activeCategoryLabel} ({activeCategoryCount})
           </button>
@@ -537,8 +537,8 @@ export function CatalogExperience({ slug }: { slug: string }) {
         </div>
       </section>
 
-      <div className="grid gap-4 lg:grid-cols-[1.4fr_0.6fr]">
-        <section className="space-y-3">
+      <div className="grid gap-3 md:gap-4 lg:grid-cols-[1.4fr_0.6fr]">
+        <section className="space-y-2.5 sm:space-y-3">
           {visibleProducts.map((product) => {
             const quantityValue = quantities[product.id] ?? String(getDefaultQuantity(product));
             const productWhatsUrl = `https://wa.me/${(store?.phone ?? "").replace(/\D/g, "")}?text=${encodeURIComponent(
@@ -546,11 +546,11 @@ export function CatalogExperience({ slug }: { slug: string }) {
             )}`;
 
             return (
-              <article key={product.id} className="soft-panel rounded-2xl border border-white/40 p-3 shadow-sm">
+              <article key={product.id} className="soft-panel overflow-hidden rounded-2xl border border-white/40 p-2.5 shadow-sm sm:p-3">
                 <div
                   className={
                     product.imageUrl
-                      ? "grid grid-cols-[96px_minmax(0,1fr)] gap-3 sm:grid-cols-[120px_minmax(0,1fr)]"
+                      ? "grid grid-cols-[84px_minmax(0,1fr)] gap-2 sm:grid-cols-[110px_minmax(0,1fr)] sm:gap-3"
                       : "min-w-0"
                   }
                 >
@@ -561,23 +561,25 @@ export function CatalogExperience({ slug }: { slug: string }) {
                       width={480}
                       height={320}
                       unoptimized
-                      className="h-24 w-full rounded-xl object-cover sm:h-full"
+                      className="h-20 w-full rounded-xl object-cover sm:h-full"
                     />
                   ) : null}
 
                   <div className="min-w-0">
-                    <div className="flex items-start justify-between gap-2">
-                      <h2 className="min-w-0 flex-1 break-words font-[var(--font-heading)] text-base font-semibold sm:text-lg">{product.name}</h2>
-                      <p className="shrink-0 whitespace-nowrap text-sm font-bold">{formatBRL(product.price)}</p>
+                    <div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between sm:gap-2">
+                      <h2 className="min-w-0 break-words font-[var(--font-heading)] text-[15px] font-semibold leading-tight sm:flex-1 sm:text-lg">
+                        {product.name}
+                      </h2>
+                      <p className="text-sm font-bold leading-tight sm:shrink-0 sm:whitespace-nowrap">{formatBRL(product.price)}</p>
                     </div>
 
-                    <p className="break-words text-sm text-zinc-600">{product.description || "Produto sem descricao"}</p>
+                    <p className="break-words text-xs text-zinc-600 sm:text-sm">{product.description || "Produto sem descricao"}</p>
                     <p className="mt-1 text-xs text-zinc-500">{getUnitBadge(product)}</p>
                     <p className="text-xs text-zinc-500">Minimo: {formatMinimumLabel(product)}</p>
 
                     <div className="mt-3 grid gap-2 sm:flex sm:flex-wrap sm:items-center">
                       <input
-                        className="w-full rounded-lg border border-zinc-300 bg-white px-2 py-1 text-sm sm:w-28"
+                        className="w-full rounded-lg border border-zinc-300 bg-white px-2 py-1.5 text-sm sm:w-24"
                         type="number"
                         step={product.unitType === "KG" ? "0.05" : "1"}
                         min={product.minQuantity}
@@ -593,7 +595,7 @@ export function CatalogExperience({ slug }: { slug: string }) {
                       <button
                         type="button"
                         onClick={() => addToCart(product)}
-                        className="w-full rounded-lg bg-[var(--store-primary)] px-3 py-2 text-sm font-semibold text-white shadow-sm sm:w-auto"
+                        className="w-full rounded-lg bg-[var(--store-primary)] px-3 py-2 text-xs font-semibold text-white shadow-sm sm:w-auto sm:text-sm"
                       >
                         Adicionar
                       </button>
@@ -602,7 +604,7 @@ export function CatalogExperience({ slug }: { slug: string }) {
                         href={productWhatsUrl}
                         target="_blank"
                         rel="noreferrer"
-                        className="w-full rounded-lg border border-[var(--store-accent)] px-3 py-2 text-center text-sm font-semibold text-[var(--store-accent)] sm:w-auto"
+                        className="w-full rounded-lg border border-[var(--store-accent)] px-3 py-2 text-center text-xs font-semibold text-[var(--store-accent)] sm:w-auto sm:text-sm"
                       >
                         Pedir no Zap
                       </a>
@@ -636,7 +638,7 @@ export function CatalogExperience({ slug }: { slug: string }) {
       <button
         type="button"
         onClick={() => setCartOpen(true)}
-        className="fixed bottom-[calc(0.75rem+env(safe-area-inset-bottom))] left-3 right-3 z-40 flex items-center justify-between rounded-2xl bg-[var(--store-primary)] px-4 py-3 text-sm font-bold text-white shadow-md lg:hidden"
+        className="fixed bottom-[calc(0.5rem+env(safe-area-inset-bottom))] left-2 right-2 z-40 flex items-center justify-between rounded-2xl bg-[var(--store-primary)] px-3 py-2.5 text-sm font-bold text-white shadow-md sm:left-3 sm:right-3 sm:px-4 sm:py-3 lg:hidden"
       >
         <span>Ver carrinho</span>
         <span className="min-w-0 truncate text-xs font-semibold sm:text-sm">
