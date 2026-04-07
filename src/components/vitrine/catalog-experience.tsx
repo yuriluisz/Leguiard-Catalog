@@ -537,8 +537,8 @@ export function CatalogExperience({ slug }: { slug: string }) {
         </div>
       </section>
 
-      <div className="grid gap-3 md:gap-4 lg:grid-cols-[1.4fr_0.6fr]">
-        <section className="space-y-2.5 sm:space-y-3">
+      <div className="grid w-full min-w-0 gap-3 md:gap-4 lg:grid-cols-[1.4fr_0.6fr]">
+        <section className="w-full min-w-0 space-y-2.5 overflow-x-hidden sm:space-y-3">
           {visibleProducts.map((product) => {
             const quantityValue = quantities[product.id] ?? String(getDefaultQuantity(product));
             const productWhatsUrl = `https://wa.me/${(store?.phone ?? "").replace(/\D/g, "")}?text=${encodeURIComponent(
@@ -546,12 +546,12 @@ export function CatalogExperience({ slug }: { slug: string }) {
             )}`;
 
             return (
-              <article key={product.id} className="soft-panel overflow-hidden rounded-2xl border border-white/40 p-2.5 shadow-sm sm:p-3">
+              <article key={product.id} className="soft-panel w-full min-w-0 max-w-full overflow-hidden rounded-2xl border border-white/40 p-2 shadow-sm sm:p-3">
                 <div
                   className={
                     product.imageUrl
-                      ? "grid grid-cols-[84px_minmax(0,1fr)] gap-2 sm:grid-cols-[110px_minmax(0,1fr)] sm:gap-3"
-                      : "min-w-0"
+                      ? "grid w-full min-w-0 grid-cols-[72px_minmax(0,1fr)] items-start gap-2 sm:grid-cols-[110px_minmax(0,1fr)] sm:gap-3"
+                      : "w-full min-w-0"
                   }
                 >
                   {product.imageUrl ? (
@@ -561,7 +561,7 @@ export function CatalogExperience({ slug }: { slug: string }) {
                       width={480}
                       height={320}
                       unoptimized
-                      className="h-20 w-full rounded-xl object-cover sm:h-full"
+                      className="h-[72px] w-full rounded-xl object-cover sm:h-full"
                     />
                   ) : null}
 
@@ -577,9 +577,9 @@ export function CatalogExperience({ slug }: { slug: string }) {
                     <p className="mt-1 text-xs text-zinc-500">{getUnitBadge(product)}</p>
                     <p className="text-xs text-zinc-500">Minimo: {formatMinimumLabel(product)}</p>
 
-                    <div className="mt-3 grid gap-2 sm:flex sm:flex-wrap sm:items-center">
+                    <div className="mt-2.5 grid w-full min-w-0 gap-1.5 sm:flex sm:flex-wrap sm:items-center">
                       <input
-                        className="w-full rounded-lg border border-zinc-300 bg-white px-2 py-1.5 text-sm sm:w-24"
+                        className="w-full min-w-0 rounded-lg border border-zinc-300 bg-white px-2 py-1 text-xs sm:w-24 sm:text-sm"
                         type="number"
                         step={product.unitType === "KG" ? "0.05" : "1"}
                         min={product.minQuantity}
@@ -595,7 +595,7 @@ export function CatalogExperience({ slug }: { slug: string }) {
                       <button
                         type="button"
                         onClick={() => addToCart(product)}
-                        className="w-full rounded-lg bg-[var(--store-primary)] px-3 py-2 text-xs font-semibold text-white shadow-sm sm:w-auto sm:text-sm"
+                        className="w-full min-w-0 rounded-lg bg-[var(--store-primary)] px-2.5 py-1.5 text-xs font-semibold text-white shadow-sm sm:w-auto sm:px-3 sm:py-2 sm:text-sm"
                       >
                         Adicionar
                       </button>
@@ -604,7 +604,7 @@ export function CatalogExperience({ slug }: { slug: string }) {
                         href={productWhatsUrl}
                         target="_blank"
                         rel="noreferrer"
-                        className="w-full rounded-lg border border-[var(--store-accent)] px-3 py-2 text-center text-xs font-semibold text-[var(--store-accent)] sm:w-auto sm:text-sm"
+                        className="w-full min-w-0 rounded-lg border border-[var(--store-accent)] px-2.5 py-1.5 text-center text-xs font-semibold text-[var(--store-accent)] sm:w-auto sm:px-3 sm:py-2 sm:text-sm"
                       >
                         Pedir no Zap
                       </a>
