@@ -546,11 +546,11 @@ export function CatalogExperience({ slug }: { slug: string }) {
             )}`;
 
             return (
-              <article key={product.id} className="soft-panel w-full min-w-0 max-w-full overflow-hidden rounded-2xl border border-white/40 p-2 shadow-sm sm:p-3">
+              <article key={product.id} className="soft-panel w-full min-w-0 max-w-full overflow-hidden rounded-2xl border border-white/40 p-1.5 shadow-sm sm:p-2.5 md:p-3">
                 <div
                   className={
                     product.imageUrl
-                      ? "grid w-full min-w-0 grid-cols-[72px_minmax(0,1fr)] items-start gap-2 sm:grid-cols-[110px_minmax(0,1fr)] sm:gap-3"
+                      ? "grid w-full min-w-0 grid-cols-[64px_minmax(0,1fr)] items-start gap-1.5 xs:grid-cols-[72px_minmax(0,1fr)] xs:gap-2 sm:grid-cols-[110px_minmax(0,1fr)] sm:gap-3"
                       : "w-full min-w-0"
                   }
                 >
@@ -561,25 +561,25 @@ export function CatalogExperience({ slug }: { slug: string }) {
                       width={480}
                       height={320}
                       unoptimized
-                      className="h-[72px] w-full rounded-xl object-cover sm:h-full"
+                      className="h-[64px] w-full rounded-lg object-cover xs:h-[72px] sm:h-full"
                     />
                   ) : null}
 
                   <div className="min-w-0">
-                    <div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between sm:gap-2">
-                      <h2 className="min-w-0 break-words font-[var(--font-heading)] text-[15px] font-semibold leading-tight sm:flex-1 sm:text-lg">
+                    <div className="flex flex-col gap-0.5 xs:gap-1 sm:flex-row sm:items-start sm:justify-between sm:gap-2">
+                      <h2 className="min-w-0 break-words font-[var(--font-heading)] text-[13px] leading-tight xs:text-[15px] sm:flex-1 sm:text-lg font-semibold">
                         {product.name}
                       </h2>
-                      <p className="text-sm font-bold leading-tight sm:shrink-0 sm:whitespace-nowrap">{formatBRL(product.price)}</p>
+                      <p className="text-xs font-bold leading-tight xs:text-sm sm:shrink-0 sm:whitespace-nowrap">{formatBRL(product.price)}</p>
                     </div>
 
-                    <p className="break-words text-xs text-zinc-600 sm:text-sm">{product.description || "Produto sem descricao"}</p>
-                    <p className="mt-1 text-xs text-zinc-500">{getUnitBadge(product)}</p>
-                    <p className="text-xs text-zinc-500">Minimo: {formatMinimumLabel(product)}</p>
+                    <p className="break-words text-[11px] text-zinc-600 xs:text-xs sm:text-sm">{product.description || "Produto sem descricao"}</p>
+                    <p className="mt-0.5 text-[11px] text-zinc-500 xs:text-xs">{getUnitBadge(product)}</p>
+                    <p className="text-[11px] text-zinc-500 xs:text-xs">Minimo: {formatMinimumLabel(product)}</p>
 
-                    <div className="mt-2.5 grid w-full min-w-0 gap-1.5 sm:flex sm:flex-wrap sm:items-center">
+                    <div className="mt-1.5 grid w-full min-w-0 gap-1 xs:gap-1.5 sm:flex sm:flex-wrap sm:items-center">
                       <input
-                        className="w-full min-w-0 rounded-lg border border-zinc-300 bg-white px-2 py-1 text-xs sm:w-24 sm:text-sm"
+                        className="w-full min-w-0 rounded-lg border border-zinc-300 bg-white px-1.5 py-0.5 text-xs xs:px-2 xs:py-1 sm:w-24 sm:text-sm"
                         type="number"
                         step={product.unitType === "KG" ? "0.05" : "1"}
                         min={product.minQuantity}
@@ -595,7 +595,7 @@ export function CatalogExperience({ slug }: { slug: string }) {
                       <button
                         type="button"
                         onClick={() => addToCart(product)}
-                        className="w-full min-w-0 rounded-lg bg-[var(--store-primary)] px-2.5 py-1.5 text-xs font-semibold text-white shadow-sm sm:w-auto sm:px-3 sm:py-2 sm:text-sm"
+                        className="w-full min-w-0 rounded-lg bg-[var(--store-primary)] px-2 py-1 text-xs font-semibold text-white shadow-sm xs:px-2.5 xs:py-1.5 sm:w-auto sm:px-3 sm:py-2 sm:text-sm"
                       >
                         Adicionar
                       </button>
@@ -604,9 +604,9 @@ export function CatalogExperience({ slug }: { slug: string }) {
                         href={productWhatsUrl}
                         target="_blank"
                         rel="noreferrer"
-                        className="w-full min-w-0 rounded-lg border border-[var(--store-accent)] px-2.5 py-1.5 text-center text-xs font-semibold text-[var(--store-accent)] sm:w-auto sm:px-3 sm:py-2 sm:text-sm"
+                        className="w-full min-w-0 rounded-lg border border-[var(--store-accent)] px-2 py-1 text-center text-xs font-semibold text-[var(--store-accent)] xs:px-2.5 xs:py-1.5 sm:w-auto sm:px-3 sm:py-2 sm:text-sm"
                       >
-                        Pedir no Zap
+                        Pedir Zap
                       </a>
                     </div>
                   </div>
@@ -805,17 +805,35 @@ function CartPanel({
 
       <div className="mt-3 space-y-2">
         {cart.length === 0 ? <p className="text-sm text-zinc-600">Carrinho vazio.</p> : null}
-        {cart.map((item) => (
-          <div key={item.productId} className="rounded-xl border border-zinc-200 bg-white p-2">
-            <p className="font-medium">{item.productName}</p>
-            <p className="text-xs text-zinc-600">
-              {item.quantity} {item.unitType === "KG" ? "kg" : "un"} | {formatBRL(item.subtotal)}
-            </p>
-            <button type="button" onClick={() => onRemove(item.productId)} className="mt-1 text-xs text-red-700 underline">
-              Remover
-            </button>
-          </div>
-        ))}
+        {cart.map((item) => {
+          const itemWhatsUrl = `https://wa.me/${store?.phone?.replace(/\D/g, "") ?? ""}?text=${encodeURIComponent(`Ola! Quero pedir ${item.productName}.`)}`;
+          return (
+            <div key={item.productId} className="rounded-xl border border-zinc-200 bg-white p-2">
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0 flex-1">
+                  <p className="break-words font-medium">{item.productName}</p>
+                  <p className="text-xs text-zinc-600">
+                    {item.quantity} {item.unitType === "KG" ? "kg" : "un"} | {formatBRL(item.subtotal)}
+                  </p>
+                </div>
+                <div className="flex gap-1">
+                  <a
+                    href={itemWhatsUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-xs font-semibold text-green-600 underline"
+                    title="Pedir este item via WhatsApp"
+                  >
+                    Zap
+                  </a>
+                  <button type="button" onClick={() => onRemove(item.productId)} className="text-xs text-red-700 underline">
+                    X
+                  </button>
+                </div>
+              </div>
+            </div>
+          );
+        })}
       </div>
 
       <p className="mt-3 text-base font-bold">Total: {formatBRL(total)}</p>
