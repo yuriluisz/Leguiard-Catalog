@@ -627,6 +627,7 @@ export function CatalogExperience({ slug }: { slug: string }) {
             checkout={checkout}
             acceptedPayments={acceptedPayments}
             checkingOut={checkingOut}
+            storePhone={store?.phone ?? ""}
             message={message}
             onCheckoutChange={setCheckout}
             onRemove={(productId) => removeItem(slug, productId)}
@@ -655,7 +656,8 @@ export function CatalogExperience({ slug }: { slug: string }) {
               checkout={checkout}
               acceptedPayments={acceptedPayments}
               checkingOut={checkingOut}
-              message={message}
+            storePhone={store?.phone ?? ""}
+            message={message}
               onCheckoutChange={setCheckout}
               onRemove={(productId) => removeItem(slug, productId)}
               onCheckout={() => void handleCheckout()}
@@ -766,6 +768,7 @@ type CartPanelProps = {
   checkout: CheckoutPayload;
   acceptedPayments: PaymentMethod[];
   checkingOut: boolean;
+  storePhone: string;
   message: string | null;
   onCheckoutChange: (payload: CheckoutPayload) => void;
   onRemove: (productId: string) => void;
@@ -779,6 +782,7 @@ function CartPanel({
   checkout,
   acceptedPayments,
   checkingOut,
+  storePhone,
   message,
   onCheckoutChange,
   onRemove,
@@ -806,7 +810,7 @@ function CartPanel({
       <div className="mt-3 space-y-2">
         {cart.length === 0 ? <p className="text-sm text-zinc-600">Carrinho vazio.</p> : null}
         {cart.map((item) => {
-          const itemWhatsUrl = `https://wa.me/${store?.phone?.replace(/\D/g, "") ?? ""}?text=${encodeURIComponent(`Ola! Quero pedir ${item.productName}.`)}`;
+          const itemWhatsUrl = `https://wa.me/${storePhone.replace(/\D/g, "")}?text=${encodeURIComponent(`Ola! Quero pedir ${item.productName}.`)}`;
           return (
             <div key={item.productId} className="rounded-xl border border-zinc-200 bg-white p-2">
               <div className="flex items-start justify-between gap-2">
