@@ -333,7 +333,18 @@ export function CatalogExperience({ slug }: { slug: string }) {
         })
       });
 
-      window.open(response.url, "_blank", "noopener,noreferrer");
+      if (!response.url) {
+        throw new Error("Nao foi possivel gerar o link do WhatsApp");
+      }
+
+      // iOS/Safari can block async popups; fallback to same-tab redirect.
+      const popup = window.open(response.url, "_blank", "noopener,noreferrer");
+
+      if (!popup) {
+        window.location.assign(response.url);
+        return;
+      }
+
       clearStore(slug);
       setCartOpen(false);
       setMessage("Pedido montado e enviado para o WhatsApp.");
