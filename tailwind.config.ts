@@ -15,15 +15,19 @@ const config: Config = {
       xl: "1280px"
     },
     extend: {
+      fontFamily: {
+        sans: ["var(--font-inter)", "sans-serif"]
+      },
       colors: {
-        canvas: "#ffffff",
-        ink: "#0a0a0a",
+        canvas: "#fafafa",
+        ink: "#09090b",
         accent: "#1447e6",
         leaf: "#1a4eda",
-        sky: "#f5f5f5"
+        sky: "#f4f4f5"
       },
       boxShadow: {
-        card: "0 1px 3px 0 hsl(0 0% 0% / 0.10), 0 2px 4px -1px hsl(0 0% 0% / 0.10)"
+        card: "0 4px 6px -1px rgb(0 0 0 / 0.05), 0 2px 4px -2px rgb(0 0 0 / 0.05)",
+        soft: "0 10px 15px -3px rgb(0 0 0 / 0.05), 0 4px 6px -4px rgb(0 0 0 / 0.05)"
       }
     }
   },

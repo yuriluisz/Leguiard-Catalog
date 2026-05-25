@@ -1,10 +1,17 @@
 import bcrypt from "bcryptjs";
+import crypto from "crypto";
 import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
 const email = (process.env.ADMIN_EMAIL || "admin@leguiard.local").trim().toLowerCase();
-const password = process.env.ADMIN_PASSWORD || "123456";
+let password = process.env.ADMIN_PASSWORD;
+
+if (!password) {
+  password = crypto.randomBytes(8).toString("hex");
+  console.log(`\n[AVISO] Nenhuma ADMIN_PASSWORD fornecida. Senha gerada automaticamente: ${password}\n`);
+}
+
 const storeSlug = (process.env.ADMIN_STORE_SLUG || "minha-loja").trim().toLowerCase();
 
 const defaultSettings = {

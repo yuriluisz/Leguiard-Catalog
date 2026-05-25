@@ -1,17 +1,11 @@
 import type { Metadata } from "next";
-import { Space_Grotesk, IBM_Plex_Sans } from "next/font/google";
+import { Inter } from "next/font/google";
 
 import "./globals.css";
 
-const heading = Space_Grotesk({
+const inter = Inter({
   subsets: ["latin"],
-  variable: "--font-heading"
-});
-
-const body = IBM_Plex_Sans({
-  weight: ["400", "500", "600", "700"],
-  subsets: ["latin"],
-  variable: "--font-body"
+  variable: "--font-inter"
 });
 
 export const metadata: Metadata = {
@@ -36,7 +30,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="pt-BR">
-      <body className={`${heading.variable} ${body.variable} font-[var(--font-body)]`}>{children}</body>
+      <body className={`${inter.variable} font-sans antialiased`}>{children}</body>
     </html>
   );
 }
