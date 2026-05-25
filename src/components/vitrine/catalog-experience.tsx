@@ -63,11 +63,21 @@ function toExternalHref(value: string | null | undefined): string | null {
   return `https://${normalized}`;
 }
 
-export function CatalogExperience({ slug }: { slug: string }) {
-  const [isLoading, setIsLoading] = useState(true);
-  const [store, setStore] = useState<StoreRecord | null>(null);
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [products, setProducts] = useState<ProductRecord[]>([]);
+export function CatalogExperience({
+  slug,
+  initialStore,
+  initialCategories,
+  initialProducts
+}: {
+  slug: string;
+  initialStore: StoreRecord;
+  initialCategories: Category[];
+  initialProducts: ProductRecord[];
+}) {
+  const [isLoading, setIsLoading] = useState(false);
+  const [store, setStore] = useState<StoreRecord | null>(initialStore);
+  const [categories, setCategories] = useState<Category[]>(initialCategories);
+  const [products, setProducts] = useState<ProductRecord[]>(initialProducts);
   const [search, setSearch] = useState("");
   const [activeCategory, setActiveCategory] = useState<string>("all");
   const [showMobileCategories, setShowMobileCategories] = useState(false);
@@ -88,43 +98,7 @@ export function CatalogExperience({ slug }: { slug: string }) {
 
   const leadStorageKey = `leadCaptured:${slug}`;
 
-  useEffect(() => {
-    let cancelled = false;
 
-    const run = async () => {
-      setIsLoading(true);
-
-      try {
-        const encodedSlug = encodeURIComponent(slug);
-
-        const [storeData, categoriesData, productsData] = await Promise.all([
-          fetchJson<StoreRecord>(`/api/store?slug=${encodedSlug}`),
-          fetchJson<Category[]>(`/api/categories?slug=${encodedSlug}`),
-          fetchJson<ProductRecord[]>(`/api/products?slug=${encodedSlug}`)
-        ]);
-
-        if (!cancelled) {
-          setStore(storeData);
-          setCategories(categoriesData);
-          setProducts(productsData);
-        }
-      } catch (error) {
-        if (!cancelled) {
-          setMessage(error instanceof Error ? error.message : "Falha ao carregar catalogo");
-        }
-      } finally {
-        if (!cancelled) {
-          setIsLoading(false);
-        }
-      }
-    };
-
-    void run();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [slug]);
 
   useEffect(() => {
     let cancelled = false;
@@ -424,7 +398,6 @@ export function CatalogExperience({ slug }: { slug: string }) {
               alt={store.name}
               width={52}
               height={52}
-              unoptimized
               className="h-12 w-12 rounded-full object-cover ring-2 ring-white sm:h-14 sm:w-14"
             />
           ) : (
@@ -571,7 +544,6 @@ export function CatalogExperience({ slug }: { slug: string }) {
                       alt={product.name}
                       width={480}
                       height={320}
-                      unoptimized
                       className="h-[64px] w-full rounded-lg object-cover xs:h-[72px] sm:h-full"
                     />
                   ) : null}

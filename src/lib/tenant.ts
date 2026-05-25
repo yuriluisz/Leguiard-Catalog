@@ -1,4 +1,5 @@
 import { getServerSession } from "next-auth";
+import { cookies } from "next/headers";
 
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
@@ -124,9 +125,32 @@ export async function resolveAdminStoreContext(request?: Request) {
     };
   }
 
-  const requestedStoreId = request
-    ? new URL(request.url).searchParams.get("storeId") || request.headers.get("x-store-id")
-    : null;
+  let requestedStoreId = null;
+  
+  if (request) {
+    requestedStoreId = new URL(request.url).searchParams.get("storeId") || request.headers.get("x-store-id");
+  }
+  
+  if (!requestedStoreId) {
+    const cookieStore = cookies();
+    requestedStoreId = cookieStore.get("admin-store-id")?.value || null;
+  }
+
+  if (isSystemAdmin && requestedStoreId) {
+    const targetStore = await prisma.store.findUnique({
+      where: { id: requestedStoreId }
+    });
+
+    if (targetStore) {
+      return {
+        ok: true as const,
+        userId,
+        userEmail,
+        isSystemAdmin,
+        store: targetStore
+      };
+    }
+  }
 
   const membership = requestedStoreId
     ? await prisma.storeUser.findFirst({

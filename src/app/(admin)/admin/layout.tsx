@@ -3,7 +3,9 @@ import { redirect } from "next/navigation";
 import { Boxes, FileSpreadsheet, Home, LayoutGrid, Settings2, Users, type LucideIcon, Weight } from "lucide-react";
 
 import { LogoutButton } from "@/components/admin/logout-button";
+import { StoreSwitcher } from "@/components/admin/store-switcher";
 import { resolveAdminStoreContext } from "@/lib/tenant";
+import { prisma } from "@/lib/prisma";
 
 const baseNavItems = [
   { href: "/admin", label: "Inicio", icon: Home },
@@ -30,6 +32,10 @@ export default async function AdminLayout({
     ? [...baseNavItems, { href: "/admin/usuarios", label: "Usuarios", icon: Users }]
     : baseNavItems;
 
+  const stores = context.isSystemAdmin
+    ? await prisma.store.findMany({ select: { id: true, name: true }, orderBy: { name: "asc" } })
+    : [];
+
   const storefrontUrl = `/${context.store.slug}`;
 
   return (
@@ -37,9 +43,13 @@ export default async function AdminLayout({
       <header className="mb-6 rounded-2xl border border-zinc-200 bg-white/85 p-4 shadow-card backdrop-blur">
         <div className="flex flex-wrap items-center gap-2">
           <h1 className="font-[var(--font-heading)] text-xl font-bold sm:text-2xl">Painel do Lojista</h1>
-          <span className="w-full rounded-full border border-zinc-200 bg-zinc-100 px-3 py-1 text-xs font-medium text-zinc-700 sm:ml-auto sm:w-auto">
-            Loja ativa: {context.store.name}
-          </span>
+          {context.isSystemAdmin && stores.length > 0 ? (
+            <StoreSwitcher stores={stores} currentStoreId={context.store.id} />
+          ) : (
+            <span className="w-full rounded-full border border-zinc-200 bg-zinc-100 px-3 py-1 text-xs font-medium text-zinc-700 sm:ml-auto sm:w-auto">
+              Loja ativa: {context.store.name}
+            </span>
+          )}
           {context.isSystemAdmin ? (
             <span className="rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">
               Admin geral
