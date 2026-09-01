@@ -14,11 +14,16 @@ export function FloatingCartBar({ cartItems, onOpenCart }: FloatingCartBarProps)
     return null;
   }
 
-  const totalQuantity = cartItems.reduce((acc, item) => acc + (item.unitType === "UN" ? item.quantity : 1), 0);
   const totalPrice = cartItems.reduce((acc, item) => acc + item.subtotal, 0);
 
   return (
-    <div className="fixed bottom-4 left-4 right-4 z-40 sm:hidden animate-slide-up">
+    <aside
+      aria-label="Resumo da sacola"
+      className="fixed left-3 right-3 z-40 sm:hidden animate-slide-up"
+      style={{
+        bottom: "calc(0.75rem + env(safe-area-inset-bottom, 0px))"
+      }}
+    >
       <button
         type="button"
         onClick={onOpenCart}
@@ -45,6 +50,6 @@ export function FloatingCartBar({ cartItems, onOpenCart }: FloatingCartBarProps)
           <ArrowRight className="h-3.5 w-3.5" />
         </div>
       </button>
-    </div>
+    </aside>
   );
 }

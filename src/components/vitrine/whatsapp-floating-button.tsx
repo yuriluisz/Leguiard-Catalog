@@ -5,6 +5,7 @@ import { useMemo } from "react";
 type WhatsAppFloatingButtonProps = {
   phone?: string;
   storeName?: string;
+  hasCartItems?: boolean;
 };
 
 function WhatsAppIcon({ className }: { className?: string }) {
@@ -20,7 +21,11 @@ function WhatsAppIcon({ className }: { className?: string }) {
   );
 }
 
-export function WhatsAppFloatingButton({ phone, storeName }: WhatsAppFloatingButtonProps) {
+export function WhatsAppFloatingButton({
+  phone,
+  storeName,
+  hasCartItems = false
+}: WhatsAppFloatingButtonProps) {
   const whatsappUrl = useMemo(() => {
     if (!phone) return null;
     const cleanDigits = phone.replace(/\D/g, "");
@@ -41,20 +46,28 @@ export function WhatsAppFloatingButton({ phone, storeName }: WhatsAppFloatingBut
   if (!whatsappUrl) return null;
 
   return (
-    <aside aria-label="Atendimento via WhatsApp" className="fixed bottom-20 right-4 z-40 sm:bottom-6 sm:right-6">
+    <aside
+      aria-label="Atendimento via WhatsApp"
+      className="fixed right-4 z-40 sm:bottom-6 sm:right-6 transition-all duration-300"
+      style={{
+        bottom: hasCartItems
+          ? "calc(5.5rem + env(safe-area-inset-bottom, 0px))"
+          : "calc(1.25rem + env(safe-area-inset-bottom, 0px))"
+      }}
+    >
       <a
         href={whatsappUrl}
         target="_blank"
         rel="noopener noreferrer"
         aria-label="Fale conosco no WhatsApp"
-        className="group relative flex items-center gap-2.5 rounded-full bg-[#25D366] p-3.5 text-white shadow-lg shadow-emerald-600/30 transition-all duration-300 hover:scale-105 hover:bg-[#20ba5a] hover:shadow-xl hover:shadow-emerald-600/40 active:scale-95"
+        className="group relative flex items-center gap-2 rounded-full bg-[#25D366] p-3.5 text-white shadow-lg shadow-emerald-600/30 transition-all duration-300 hover:scale-105 hover:bg-[#20ba5a] hover:shadow-xl hover:shadow-emerald-600/40 active:scale-95"
       >
         {/* Pulse effect */}
         <span className="absolute -inset-1 -z-10 animate-ping rounded-full bg-[#25D366]/40 opacity-75" />
 
         <WhatsAppIcon className="h-6 w-6 shrink-0 fill-current" />
 
-        {/* Text Label on hover / desktop */}
+        {/* Text Label on desktop */}
         <span className="hidden pr-1.5 text-xs font-bold sm:inline-block">
           Fale Conosco
         </span>

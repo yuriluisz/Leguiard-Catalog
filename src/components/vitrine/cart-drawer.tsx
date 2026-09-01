@@ -278,7 +278,7 @@ export function CartDrawer({
                         value={checkout.customerName}
                         onChange={(e) => onCheckoutChange({ ...checkout, customerName: e.target.value })}
                         placeholder="Nome e Sobrenome"
-                        className="w-full rounded-xl border border-zinc-200 px-3 py-2 text-xs focus:border-blue-600 focus:outline-none"
+                        className="w-full rounded-xl border border-zinc-200 px-3.5 py-2.5 text-sm text-zinc-900 focus:border-zinc-900 focus:outline-none"
                       />
                     </div>
 
@@ -289,7 +289,7 @@ export function CartDrawer({
                         value={checkout.customerPhone}
                         onChange={(e) => onCheckoutChange({ ...checkout, customerPhone: e.target.value })}
                         placeholder="DDD + Número"
-                        className="w-full rounded-xl border border-zinc-200 px-3 py-2 text-xs focus:border-blue-600 focus:outline-none"
+                        className="w-full rounded-xl border border-zinc-200 px-3.5 py-2.5 text-sm text-zinc-900 focus:border-zinc-900 focus:outline-none"
                       />
                     </div>
                   </div>
@@ -305,7 +305,7 @@ export function CartDrawer({
                         value={checkout.address || ""}
                         onChange={(e) => onCheckoutChange({ ...checkout, address: e.target.value })}
                         placeholder="Rua, número, complemento, bairro..."
-                        className="w-full rounded-xl border border-zinc-200 px-3 py-2 text-xs focus:border-blue-600 focus:outline-none"
+                        className="w-full rounded-xl border border-zinc-200 px-3.5 py-2.5 text-sm text-zinc-900 focus:border-zinc-900 focus:outline-none"
                       />
                     </div>
                   )}
@@ -321,7 +321,7 @@ export function CartDrawer({
                           key={method}
                           type="button"
                           onClick={() => onCheckoutChange({ ...checkout, paymentMethod: method })}
-                          className={`rounded-xl border px-3.5 py-2 text-xs font-bold transition-all ${
+                          className={`rounded-xl border px-3.5 py-2.5 text-xs font-bold transition-all min-h-[40px] ${
                             checkout.paymentMethod === method
                               ? "border-zinc-900 bg-zinc-900 text-white shadow-sm"
                               : "border-zinc-200 bg-zinc-50 text-zinc-700 hover:bg-zinc-100"
@@ -344,7 +344,7 @@ export function CartDrawer({
                         value={checkout.changeFor || ""}
                         onChange={(e) => onCheckoutChange({ ...checkout, changeFor: e.target.value })}
                         placeholder="Ex: R$ 50,00"
-                        className="w-full rounded-xl border border-zinc-200 px-3 py-2 text-xs focus:border-blue-600 focus:outline-none"
+                        className="w-full rounded-xl border border-zinc-200 px-3.5 py-2.5 text-sm text-zinc-900 focus:border-zinc-900 focus:outline-none"
                       />
                     </div>
                   )}
@@ -357,7 +357,7 @@ export function CartDrawer({
                       value={checkout.notes || ""}
                       onChange={(e) => onCheckoutChange({ ...checkout, notes: e.target.value })}
                       placeholder="Alguma instrução especial?"
-                      className="w-full rounded-xl border border-zinc-200 px-3 py-2 text-xs focus:border-blue-600 focus:outline-none"
+                      className="w-full rounded-xl border border-zinc-200 px-3.5 py-2 text-sm text-zinc-900 focus:border-zinc-900 focus:outline-none"
                     />
                   </div>
                 </div>
@@ -365,9 +365,14 @@ export function CartDrawer({
             )}
           </div>
 
-          {/* Footer with totals and checkout button */}
+          {/* Footer with totals, checkout button and safe-area inset */}
           {cartItems.length > 0 && (
-            <div className="border-t border-zinc-100 bg-zinc-50/80 p-5 space-y-3">
+            <div
+              className="border-t border-zinc-100 bg-zinc-50/80 p-4 sm:p-5 space-y-3"
+              style={{
+                paddingBottom: "max(1.25rem, env(safe-area-inset-bottom, 0px))"
+              }}
+            >
               <div className="space-y-1.5 text-xs text-zinc-600">
                 <div className="flex justify-between">
                   <span>Subtotal</span>
@@ -389,7 +394,7 @@ export function CartDrawer({
                 type="button"
                 onClick={handleSubmitOrder}
                 disabled={isSubmitting}
-                className="flex w-full items-center justify-center gap-2 rounded-2xl bg-emerald-600 py-3.5 text-sm font-extrabold text-white shadow-lg shadow-emerald-600/20 transition-all hover:bg-emerald-700 disabled:opacity-50 active:scale-95"
+                className="flex w-full items-center justify-center gap-2 rounded-2xl bg-emerald-600 py-3.5 text-sm font-extrabold text-white shadow-lg shadow-emerald-600/20 transition-all hover:bg-emerald-700 disabled:opacity-50 active:scale-95 min-h-[48px]"
               >
                 <Send className="h-4 w-4" />
                 <span>{isSubmitting ? "Preparando WhatsApp..." : "Finalizar Pedido no WhatsApp"}</span>

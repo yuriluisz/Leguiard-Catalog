@@ -117,14 +117,14 @@ export function ProductCard({
                 onClick={handleDecrement}
                 disabled={currentNumericQty <= minQty}
                 aria-label="Diminuir quantidade"
-                className="flex h-6.5 w-6.5 sm:h-7 sm:w-7 items-center justify-center rounded-lg bg-white text-zinc-600 shadow-xs transition hover:bg-zinc-100 disabled:opacity-40 active:scale-90"
+                className="flex h-7.5 w-7.5 sm:h-7 sm:w-7 items-center justify-center rounded-lg bg-white text-zinc-600 shadow-xs transition hover:bg-zinc-100 disabled:opacity-40 active:scale-90"
               >
-                <Minus className="h-3 w-3" />
+                <Minus className="h-3.5 w-3.5 sm:h-3 sm:w-3" />
               </button>
 
-              <span className="w-8 sm:w-10 text-center text-[11px] sm:text-xs font-bold text-zinc-800">
+              <span className="w-8 sm:w-10 text-center text-xs font-bold text-zinc-800 select-none">
                 {currentNumericQty}
-                <span className="text-[9px] text-zinc-600 font-normal ml-0.5">
+                <span className="text-[10px] text-zinc-600 font-normal ml-0.5">
                   {isKG ? "kg" : ""}
                 </span>
               </span>
@@ -133,9 +133,9 @@ export function ProductCard({
                 type="button"
                 onClick={handleIncrement}
                 aria-label="Aumentar quantidade"
-                className="flex h-6.5 w-6.5 sm:h-7 sm:w-7 items-center justify-center rounded-lg bg-white text-zinc-600 shadow-xs transition hover:bg-zinc-100 active:scale-90"
+                className="flex h-7.5 w-7.5 sm:h-7 sm:w-7 items-center justify-center rounded-lg bg-white text-zinc-600 shadow-xs transition hover:bg-zinc-100 active:scale-90"
               >
-                <Plus className="h-3 w-3" />
+                <Plus className="h-3.5 w-3.5 sm:h-3 sm:w-3" />
               </button>
             </div>
 

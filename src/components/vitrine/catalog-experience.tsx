@@ -267,7 +267,11 @@ export function CatalogExperience({
       </main>
 
       {/* 4. Fixed Floating WhatsApp CTA Button */}
-      <WhatsAppFloatingButton phone={store.phone} storeName={store.name} />
+      <WhatsAppFloatingButton
+        phone={store.phone}
+        storeName={store.name}
+        hasCartItems={cartItems.length > 0}
+      />
 
       {/* 5. Mobile Floating Cart Bar */}
       <FloatingCartBar cartItems={cartItems} onOpenCart={() => setCartOpen(true)} />

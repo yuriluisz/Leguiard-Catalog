@@ -124,49 +124,85 @@ export function LeadsTable() {
             </p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead>
-                <tr className="border-b border-zinc-100 text-zinc-400 uppercase tracking-wider font-bold">
-                  <th className="pb-3 px-3">Cliente</th>
-                  <th className="pb-3 px-3">WhatsApp</th>
-                  <th className="pb-3 px-3">Data de Captura</th>
-                  <th className="pb-3 px-3 text-right">Ação</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-zinc-100">
-                {filteredLeads.map((lead) => {
-                  const cleanPhone = lead.phone.replace(/\D/g, "");
-                  const whatsappLink = `https://wa.me/${cleanPhone}`;
-                  return (
-                    <tr key={lead.id} className="hover:bg-zinc-50/80 transition-colors">
-                      <td className="py-3.5 px-3 font-bold text-zinc-900">{lead.name}</td>
-                      <td className="py-3.5 px-3 font-medium text-zinc-600">
-                        <span className="flex items-center gap-1.5">
-                          <Phone className="h-3.5 w-3.5 text-zinc-400" />
-                          {lead.phone}
-                        </span>
-                      </td>
-                      <td className="py-3.5 px-3 text-zinc-500">
-                        {new Date(lead.createdAt).toLocaleString("pt-BR")}
-                      </td>
-                      <td className="py-3.5 px-3 text-right">
-                        <a
-                          href={whatsappLink}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-50 border border-emerald-200 px-3 py-1.5 text-xs font-bold text-emerald-700 transition hover:bg-emerald-100 active:scale-95"
-                        >
-                          <MessageSquare className="h-3.5 w-3.5" />
-                          <span>Conversar</span>
-                        </a>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+          <>
+            {/* Mobile Cards View */}
+            <div className="space-y-3 sm:hidden">
+              {filteredLeads.map((lead) => {
+                const cleanPhone = lead.phone.replace(/\D/g, "");
+                const whatsappLink = `https://wa.me/${cleanPhone}`;
+                return (
+                  <div key={lead.id} className="rounded-2xl border border-zinc-200/80 bg-zinc-50/50 p-4 space-y-2.5">
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <h4 className="font-bold text-zinc-900 text-sm">{lead.name}</h4>
+                        <p className="text-xs text-zinc-600 mt-0.5 flex items-center gap-1">
+                          <Phone className="h-3 w-3 text-zinc-400" />
+                          <span>{lead.phone}</span>
+                        </p>
+                      </div>
+                      <span className="text-[10px] text-zinc-500 font-medium shrink-0">
+                        {new Date(lead.createdAt).toLocaleDateString("pt-BR")}
+                      </span>
+                    </div>
+                    <a
+                      href={whatsappLink}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex w-full items-center justify-center gap-1.5 rounded-xl bg-emerald-600 px-3 py-2 text-xs font-bold text-white shadow-xs transition hover:bg-emerald-700 active:scale-95"
+                    >
+                      <MessageSquare className="h-3.5 w-3.5" />
+                      <span>Conversar no WhatsApp</span>
+                    </a>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Desktop Table View */}
+            <div className="hidden sm:block overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead>
+                  <tr className="border-b border-zinc-100 text-zinc-400 uppercase tracking-wider font-bold">
+                    <th className="pb-3 px-3">Cliente</th>
+                    <th className="pb-3 px-3">WhatsApp</th>
+                    <th className="pb-3 px-3">Data de Captura</th>
+                    <th className="pb-3 px-3 text-right">Ação</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-zinc-100">
+                  {filteredLeads.map((lead) => {
+                    const cleanPhone = lead.phone.replace(/\D/g, "");
+                    const whatsappLink = `https://wa.me/${cleanPhone}`;
+                    return (
+                      <tr key={lead.id} className="hover:bg-zinc-50/80 transition-colors">
+                        <td className="py-3.5 px-3 font-bold text-zinc-900">{lead.name}</td>
+                        <td className="py-3.5 px-3 font-medium text-zinc-600">
+                          <span className="flex items-center gap-1.5">
+                            <Phone className="h-3.5 w-3.5 text-zinc-400" />
+                            {lead.phone}
+                          </span>
+                        </td>
+                        <td className="py-3.5 px-3 text-zinc-500">
+                          {new Date(lead.createdAt).toLocaleString("pt-BR")}
+                        </td>
+                        <td className="py-3.5 px-3 text-right">
+                          <a
+                            href={whatsappLink}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-50 border border-emerald-200 px-3 py-1.5 text-xs font-bold text-emerald-700 transition hover:bg-emerald-100 active:scale-95"
+                          >
+                            <MessageSquare className="h-3.5 w-3.5" />
+                            <span>Conversar</span>
+                          </a>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </>
         )}
       </div>
     </div>
