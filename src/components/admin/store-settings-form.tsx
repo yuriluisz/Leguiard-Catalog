@@ -2,8 +2,26 @@
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import Image from "next/image";
+import Link from "next/link";
+import {
+  Store,
+  MapPin,
+  Phone,
+  Palette,
+  Share2,
+  CreditCard,
+  Truck,
+  MessageSquare,
+  Upload,
+  Check,
+  AlertCircle,
+  Sparkles,
+  ArrowLeft,
+  ExternalLink
+} from "lucide-react";
 
 import { fetchJson } from "@/lib/http";
+import { formatBRL } from "@/lib/format";
 import type { PaymentMethod, StoreRecord } from "@/types";
 
 type StoreForm = {
@@ -60,13 +78,17 @@ const initialForm: StoreForm = {
   }
 };
 
-const paymentOptions: PaymentMethod[] = ["PIX", "CARTAO", "DINHEIRO"];
+const paymentOptions: { key: PaymentMethod; label: string }[] = [
+  { key: "PIX", label: "Pix" },
+  { key: "CARTAO", label: "Cartão (Crédito/Débito)" },
+  { key: "DINHEIRO", label: "Dinheiro (com Troco)" }
+];
 
 export function StoreSettingsForm() {
   const [form, setForm] = useState<StoreForm>(initialForm);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState<string | null>(null);
+  const [message, setMessage] = useState<{ text: string; type: "success" | "error" } | null>(null);
 
   useEffect(() => {
     const loadStore = async () => {
@@ -80,14 +102,14 @@ export function StoreSettingsForm() {
           logoUrl: data.logoUrl ?? "",
           settings: {
             theme: {
-              primaryColor: data.settings.theme.primaryColor,
-              accentColor: data.settings.theme.accentColor,
-              backgroundColor: data.settings.theme.backgroundColor
+              primaryColor: data.settings.theme.primaryColor || "#1447e6",
+              accentColor: data.settings.theme.accentColor || "#1a4eda",
+              backgroundColor: data.settings.theme.backgroundColor || "#ffffff"
             },
             checkout: {
               deliveryFee: String(data.settings.checkout.deliveryFee ?? 0),
-              acceptedPayments: data.settings.checkout.acceptedPayments,
-              whatsappTemplate: data.settings.checkout.whatsappTemplate
+              acceptedPayments: data.settings.checkout.acceptedPayments || ["PIX", "CARTAO", "DINHEIRO"],
+              whatsappTemplate: data.settings.checkout.whatsappTemplate || "Ola! Segue meu pedido:"
             },
             social: {
               instagramUrl: data.settings.social.instagramUrl ?? "",
@@ -99,7 +121,10 @@ export function StoreSettingsForm() {
           }
         });
       } catch (error) {
-        setMessage(error instanceof Error ? error.message : "Falha ao carregar loja");
+        setMessage({
+          text: error instanceof Error ? error.message : "Falha ao carregar configurações",
+          type: "error"
+        });
       } finally {
         setLoading(false);
       }
@@ -110,14 +135,8 @@ export function StoreSettingsForm() {
 
   function normalizeWebUrl(value: string): string {
     const trimmed = value.trim();
-    if (!trimmed) {
-      return "";
-    }
-
-    if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
-      return trimmed;
-    }
-
+    if (!trimmed) return "";
+    if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) return trimmed;
     return `https://${trimmed}`;
   }
 
@@ -153,13 +172,13 @@ export function StoreSettingsForm() {
   async function saveStore(currentForm: StoreForm) {
     await fetchJson("/api/store", {
       method: "PUT",
-      body: JSON.stringify(toPayload(currentForm))
+      json: toPayload(currentForm)
     });
   }
 
   async function onUpload(file: File) {
     if (file.size > 5 * 1024 * 1024) {
-      throw new Error("A imagem deve ter no maximo 5MB");
+      throw new Error("A imagem deve ter no máximo 5MB");
     }
 
     const data = new FormData();
@@ -172,19 +191,12 @@ export function StoreSettingsForm() {
 
     if (!response.ok) {
       let uploadMessage = "Falha ao subir imagem";
-
       try {
-        const body = (await response.json()) as { message?: string; error?: string };
-        if (body.message) {
-          uploadMessage = body.message;
-        }
-        if (body.error) {
-          uploadMessage = `${uploadMessage}: ${body.error}`;
-        }
+        const body = (await response.json()) as { message?: string };
+        if (body.message) uploadMessage = body.message;
       } catch {
         // noop
       }
-
       throw new Error(uploadMessage);
     }
 
@@ -196,17 +208,8 @@ export function StoreSettingsForm() {
 
     setForm(nextForm);
     await saveStore(nextForm);
-    setMessage("Logo enviada e salva com sucesso.");
+    setMessage({ text: "Logo enviada e salva com sucesso!", type: "success" });
   }
-
-  const previewStyle = useMemo(
-    () =>
-      ({
-        background: `linear-gradient(120deg, ${form.settings.theme.primaryColor}20 0%, ${form.settings.theme.backgroundColor} 65%)`,
-        borderColor: `${form.settings.theme.accentColor}55`
-      }) as React.CSSProperties,
-    [form.settings.theme.primaryColor, form.settings.theme.accentColor, form.settings.theme.backgroundColor]
-  );
 
   function togglePayment(method: PaymentMethod) {
     setForm((prev) => {
@@ -235,356 +238,502 @@ export function StoreSettingsForm() {
 
     try {
       await saveStore(form);
-      setMessage("Configuracoes salvas com sucesso.");
+      setMessage({ text: "Configurações da loja salvas com sucesso!", type: "success" });
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Falha ao salvar");
+      setMessage({
+        text: error instanceof Error ? error.message : "Falha ao salvar configurações",
+        type: "error"
+      });
     } finally {
       setSaving(false);
     }
   }
 
   if (loading) {
-    return <p className="text-sm text-zinc-600">Carregando configuracoes...</p>;
+    return (
+      <div className="flex h-64 w-full items-center justify-center text-xs text-zinc-500">
+        Carregando configurações da loja...
+      </div>
+    );
   }
 
   return (
-    <form onSubmit={onSubmit} className="space-y-4 rounded-2xl border border-zinc-200 bg-white p-5 shadow-card">
-      <h2 className="font-[var(--font-heading)] text-xl font-semibold">Configuracoes da Loja</h2>
-
-      <div className="rounded-xl border p-4" style={previewStyle}>
-        <p className="text-xs font-semibold uppercase tracking-wide text-zinc-700">Preview de tema</p>
-        <div className="mt-2 flex items-center gap-2">
-          <span className="h-6 w-6 rounded-full" style={{ backgroundColor: form.settings.theme.primaryColor }} />
-          <span className="h-6 w-6 rounded-full" style={{ backgroundColor: form.settings.theme.accentColor }} />
-          <span className="h-6 w-6 rounded-full border border-zinc-300" style={{ backgroundColor: form.settings.theme.backgroundColor }} />
+    <div className="w-full space-y-6">
+      {/* Header & Back Link */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <Link
+            href="/admin"
+            className="inline-flex items-center gap-1 text-xs font-bold text-zinc-500 hover:text-zinc-900 transition mb-2"
+          >
+            <ArrowLeft className="h-3.5 w-3.5" />
+            <span>Voltar ao Painel</span>
+          </Link>
+          <h1 className="text-xl sm:text-2xl font-extrabold text-zinc-900 tracking-tight">
+            Configurações da Loja
+          </h1>
+          <p className="text-xs text-zinc-500 mt-0.5">
+            Personalize a identidade da vitrine, WhatsApp de pedidos, taxa de entrega e canais sociais.
+          </p>
         </div>
+
+        {form.slug && (
+          <a
+            href={`/${form.slug}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-2 rounded-2xl border border-zinc-200 bg-white px-4 py-2.5 text-xs font-bold text-zinc-700 shadow-sm transition hover:bg-zinc-50 hover:text-zinc-900 active:scale-95 shrink-0"
+          >
+            <span>Ver Vitrine</span>
+            <ExternalLink className="h-3.5 w-3.5 text-zinc-400" />
+          </a>
+        )}
       </div>
 
-      <label className="block text-sm font-medium">
-        Slug da loja (URL)
-        <input
-          className="mt-1 w-full rounded-xl border border-zinc-300 px-3 py-2"
-          placeholder="loja-do-ze"
-          value={form.slug}
-          onChange={(event) => setForm((prev) => ({ ...prev, slug: event.target.value }))}
-          required
-        />
-      </label>
-
-      <label className="block text-sm font-medium">
-        Nome da Loja
-        <input
-          className="mt-1 w-full rounded-xl border border-zinc-300 px-3 py-2"
-          value={form.name}
-          onChange={(event) => setForm((prev) => ({ ...prev, name: event.target.value }))}
-          required
-        />
-      </label>
-
-      <label className="block text-sm font-medium">
-        Endereco para retirada
-        <input
-          className="mt-1 w-full rounded-xl border border-zinc-300 px-3 py-2"
-          value={form.address}
-          onChange={(event) => setForm((prev) => ({ ...prev, address: event.target.value }))}
-          required
-        />
-      </label>
-
-      <label className="block text-sm font-medium">
-        WhatsApp recebedor
-        <input
-          className="mt-1 w-full rounded-xl border border-zinc-300 px-3 py-2"
-          value={form.phone}
-          onChange={(event) => setForm((prev) => ({ ...prev, phone: event.target.value }))}
-          required
-        />
-      </label>
-
-      <label className="block text-sm font-medium">
-        Logo URL
-        <input
-          className="mt-1 w-full rounded-xl border border-zinc-300 px-3 py-2"
-          value={form.logoUrl}
-          onChange={(event) => setForm((prev) => ({ ...prev, logoUrl: event.target.value }))}
-        />
-      </label>
-
-      <div className="space-y-2">
-        <p className="text-sm font-medium">Upload de imagem</p>
-        <input
-          type="file"
-          accept="image/*"
-          onChange={(event) => {
-            const file = event.target.files?.[0];
-            if (!file) {
-              return;
-            }
-
-            setMessage(null);
-            setSaving(true);
-            void onUpload(file)
-              .catch((error: Error) => setMessage(error.message))
-              .finally(() => setSaving(false));
-          }}
-        />
-        <p className="text-xs text-zinc-500">Ao enviar, a logo ja sera salva automaticamente.</p>
-      </div>
-
-      <div className="space-y-3 rounded-xl border border-zinc-200 bg-zinc-50 p-4">
-        <h3 className="font-[var(--font-heading)] text-lg font-semibold">Redes sociais da vitrine</h3>
-        <p className="text-xs text-zinc-600">Esses links aparecem na vitrine para o cliente acessar seus canais.</p>
-
-        <div className="grid gap-3 md:grid-cols-2">
-          <label className="block text-sm font-medium">
-            Instagram
-            <input
-              className="mt-1 w-full rounded-xl border border-zinc-300 bg-white px-3 py-2"
-              value={form.settings.social.instagramUrl}
-              placeholder="instagram.com/sualoja"
-              onChange={(event) =>
-                setForm((prev) => ({
-                  ...prev,
-                  settings: {
-                    ...prev.settings,
-                    social: {
-                      ...prev.settings.social,
-                      instagramUrl: event.target.value
-                    }
-                  }
-                }))
-              }
-            />
-          </label>
-
-          <label className="block text-sm font-medium">
-            Facebook
-            <input
-              className="mt-1 w-full rounded-xl border border-zinc-300 bg-white px-3 py-2"
-              value={form.settings.social.facebookUrl}
-              placeholder="facebook.com/sualoja"
-              onChange={(event) =>
-                setForm((prev) => ({
-                  ...prev,
-                  settings: {
-                    ...prev.settings,
-                    social: {
-                      ...prev.settings.social,
-                      facebookUrl: event.target.value
-                    }
-                  }
-                }))
-              }
-            />
-          </label>
-
-          <label className="block text-sm font-medium">
-            TikTok
-            <input
-              className="mt-1 w-full rounded-xl border border-zinc-300 bg-white px-3 py-2"
-              value={form.settings.social.tiktokUrl}
-              placeholder="tiktok.com/@sualoja"
-              onChange={(event) =>
-                setForm((prev) => ({
-                  ...prev,
-                  settings: {
-                    ...prev.settings,
-                    social: {
-                      ...prev.settings.social,
-                      tiktokUrl: event.target.value
-                    }
-                  }
-                }))
-              }
-            />
-          </label>
-
-          <label className="block text-sm font-medium">
-            YouTube
-            <input
-              className="mt-1 w-full rounded-xl border border-zinc-300 bg-white px-3 py-2"
-              value={form.settings.social.youtubeUrl}
-              placeholder="youtube.com/@sualoja"
-              onChange={(event) =>
-                setForm((prev) => ({
-                  ...prev,
-                  settings: {
-                    ...prev.settings,
-                    social: {
-                      ...prev.settings.social,
-                      youtubeUrl: event.target.value
-                    }
-                  }
-                }))
-              }
-            />
-          </label>
-
-          <label className="block text-sm font-medium md:col-span-2">
-            Site oficial
-            <input
-              className="mt-1 w-full rounded-xl border border-zinc-300 bg-white px-3 py-2"
-              value={form.settings.social.siteUrl}
-              placeholder="www.sualoja.com.br"
-              onChange={(event) =>
-                setForm((prev) => ({
-                  ...prev,
-                  settings: {
-                    ...prev.settings,
-                    social: {
-                      ...prev.settings.social,
-                      siteUrl: event.target.value
-                    }
-                  }
-                }))
-              }
-            />
-          </label>
+      {/* Status Feedback Toast */}
+      {message && (
+        <div
+          className={`flex items-center gap-2.5 rounded-2xl p-4 text-xs font-bold border animate-slide-up ${
+            message.type === "success"
+              ? "bg-emerald-50 text-emerald-800 border-emerald-200"
+              : "bg-red-50 text-red-800 border-red-200"
+          }`}
+        >
+          {message.type === "success" ? (
+            <Check className="h-4 w-4 shrink-0 text-emerald-600" />
+          ) : (
+            <AlertCircle className="h-4 w-4 shrink-0 text-red-600" />
+          )}
+          <span>{message.text}</span>
         </div>
-      </div>
+      )}
 
-      {form.logoUrl ? (
-        <Image src={form.logoUrl} alt="Logo da loja" width={80} height={80} unoptimized className="h-20 w-20 rounded-full object-cover" />
-      ) : null}
+      {/* Main Responsive Form Grid */}
+      <form onSubmit={onSubmit} className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Left Columns (2 cols) - Settings Cards */}
+        <div className="lg:col-span-2 space-y-6">
+          {/* Card 1: Identidade da Loja */}
+          <div className="rounded-3xl border border-zinc-200/90 bg-white p-5 sm:p-6 shadow-sm space-y-5">
+            <div className="flex items-center gap-3 pb-3 border-b border-zinc-100">
+              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
+                <Store className="h-5 w-5" />
+              </div>
+              <div>
+                <h2 className="text-sm font-extrabold text-zinc-900">Identidade da Loja</h2>
+                <p className="text-[11px] text-zinc-500">Nome, endereço e endereço web (URL)</p>
+              </div>
+            </div>
 
-      <div className="grid gap-3 md:grid-cols-3">
-        <label className="block text-sm font-medium">
-          Cor Primaria
-          <input
-            type="color"
-            className="mt-1 h-11 w-full rounded-xl border border-zinc-300 px-2"
-            value={form.settings.theme.primaryColor}
-            onChange={(event) =>
-              setForm((prev) => ({
-                ...prev,
-                settings: {
-                  ...prev.settings,
-                  theme: {
-                    ...prev.settings.theme,
-                    primaryColor: event.target.value
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-bold text-zinc-700 mb-1">Nome da Loja *</label>
+                <input
+                  required
+                  value={form.name}
+                  onChange={(e) => setForm((prev) => ({ ...prev, name: e.target.value }))}
+                  placeholder="Ex: Minha Mercearia & Empório"
+                  className="w-full rounded-xl border border-zinc-200 px-3.5 py-2.5 text-xs text-zinc-900 focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-zinc-700 mb-1">
+                  Slug da Loja (Link da Vitrine) *
+                </label>
+                <div className="flex items-center rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs text-zinc-500 focus-within:border-blue-600 focus-within:bg-white focus-within:ring-2 focus-within:ring-blue-100">
+                  <span>/</span>
+                  <input
+                    required
+                    value={form.slug}
+                    onChange={(e) => setForm((prev) => ({ ...prev, slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "") }))}
+                    placeholder="minha-loja"
+                    className="w-full bg-transparent pl-1 text-xs text-zinc-900 font-semibold focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              <div className="sm:col-span-2">
+                <label className="block text-xs font-bold text-zinc-700 mb-1">
+                  Endereço para Retirada *
+                </label>
+                <div className="relative">
+                  <MapPin className="absolute left-3.5 top-3 h-4 w-4 text-zinc-400" />
+                  <input
+                    required
+                    value={form.address}
+                    onChange={(e) => setForm((prev) => ({ ...prev, address: e.target.value }))}
+                    placeholder="Ex: Av. Paulista, 1000 - Loja 12 - Bela Vista, São Paulo"
+                    className="w-full rounded-xl border border-zinc-200 pl-10 pr-3.5 py-2.5 text-xs text-zinc-900 focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Logo Upload Section */}
+            <div className="pt-2">
+              <label className="block text-xs font-bold text-zinc-700 mb-2">Logo da Loja</label>
+              <div className="flex flex-col sm:flex-row sm:items-center gap-4 rounded-2xl border border-dashed border-zinc-300 bg-zinc-50/50 p-4">
+                <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm">
+                  {form.logoUrl ? (
+                    <Image
+                      src={form.logoUrl}
+                      alt="Logo"
+                      fill
+                      className="object-cover"
+                      unoptimized
+                    />
+                  ) : (
+                    <div className="flex h-full w-full items-center justify-center text-zinc-400">
+                      <Store className="h-6 w-6 stroke-[1.5]" />
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex-1 space-y-1">
+                  <label className="inline-flex cursor-pointer items-center gap-2 rounded-xl bg-white border border-zinc-300 px-3.5 py-2 text-xs font-bold text-zinc-700 shadow-sm transition hover:bg-zinc-100">
+                    <Upload className="h-3.5 w-3.5" />
+                    <span>Selecionar Nova Imagem</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (!file) return;
+                        setMessage(null);
+                        setSaving(true);
+                        void onUpload(file)
+                          .catch((err: Error) => setMessage({ text: err.message, type: "error" }))
+                          .finally(() => setSaving(false));
+                      }}
+                    />
+                  </label>
+                  <p className="text-[11px] text-zinc-500">
+                    Formatos recomendados: PNG, JPG ou WebP (máx. 5MB).
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Card 2: Atendimento, WhatsApp & Logística */}
+          <div className="rounded-3xl border border-zinc-200/90 bg-white p-5 sm:p-6 shadow-sm space-y-5">
+            <div className="flex items-center gap-3 pb-3 border-b border-zinc-100">
+              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600">
+                <Phone className="h-5 w-5" />
+              </div>
+              <div>
+                <h2 className="text-sm font-extrabold text-zinc-900">Atendimento & Pedidos WhatsApp</h2>
+                <p className="text-[11px] text-zinc-500">Número que receberá os pedidos, taxa de entrega e pagamentos</p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-bold text-zinc-700 mb-1">
+                  WhatsApp Recebedor (com DDD) *
+                </label>
+                <input
+                  required
+                  type="tel"
+                  value={form.phone}
+                  onChange={(e) => setForm((prev) => ({ ...prev, phone: e.target.value }))}
+                  placeholder="5511999999999"
+                  className="w-full rounded-xl border border-zinc-200 px-3.5 py-2.5 text-xs text-zinc-900 focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-zinc-700 mb-1">
+                  Taxa de Entrega Padrão (R$)
+                </label>
+                <div className="relative">
+                  <Truck className="absolute left-3.5 top-3 h-4 w-4 text-zinc-400" />
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.50"
+                    value={form.settings.checkout.deliveryFee}
+                    onChange={(e) =>
+                      setForm((prev) => ({
+                        ...prev,
+                        settings: {
+                          ...prev.settings,
+                          checkout: { ...prev.settings.checkout, deliveryFee: e.target.value }
+                        }
+                      }))
+                    }
+                    placeholder="0.00"
+                    className="w-full rounded-xl border border-zinc-200 pl-10 pr-3.5 py-2.5 text-xs text-zinc-900 focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                  />
+                </div>
+              </div>
+
+              {/* Payment Methods */}
+              <div className="sm:col-span-2 space-y-2">
+                <label className="block text-xs font-bold text-zinc-700">
+                  Formas de Pagamento Aceitas
+                </label>
+                <div className="flex flex-wrap gap-2">
+                  {paymentOptions.map((opt) => {
+                    const isSelected = form.settings.checkout.acceptedPayments.includes(opt.key);
+                    return (
+                      <button
+                        key={opt.key}
+                        type="button"
+                        onClick={() => togglePayment(opt.key)}
+                        className={`flex items-center gap-1.5 rounded-xl border px-4 py-2 text-xs font-bold transition-all active:scale-95 ${
+                          isSelected
+                            ? "border-zinc-900 bg-zinc-900 text-white shadow-sm"
+                            : "border-zinc-200 bg-zinc-50 text-zinc-600 hover:bg-zinc-100"
+                        }`}
+                      >
+                        <CreditCard className="h-3.5 w-3.5" />
+                        <span>{opt.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* WhatsApp Message Template */}
+              <div className="sm:col-span-2">
+                <label className="block text-xs font-bold text-zinc-700 mb-1">
+                  Cabeçalho da Mensagem do Pedido
+                </label>
+                <div className="relative">
+                  <MessageSquare className="absolute left-3.5 top-3 h-4 w-4 text-zinc-400" />
+                  <textarea
+                    rows={2}
+                    value={form.settings.checkout.whatsappTemplate}
+                    onChange={(e) =>
+                      setForm((prev) => ({
+                        ...prev,
+                        settings: {
+                          ...prev.settings,
+                          checkout: { ...prev.settings.checkout, whatsappTemplate: e.target.value }
+                        }
+                      }))
+                    }
+                    placeholder="Olá! Segue meu pedido realizado pelo catálogo:"
+                    className="w-full rounded-xl border border-zinc-200 pl-10 pr-3.5 py-2.5 text-xs text-zinc-900 focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Card 3: Redes Sociais */}
+          <div className="rounded-3xl border border-zinc-200/90 bg-white p-5 sm:p-6 shadow-sm space-y-5">
+            <div className="flex items-center gap-3 pb-3 border-b border-zinc-100">
+              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-purple-50 text-purple-600">
+                <Share2 className="h-5 w-5" />
+              </div>
+              <div>
+                <h2 className="text-sm font-extrabold text-zinc-900">Redes Sociais da Vitrine</h2>
+                <p className="text-[11px] text-zinc-500">Canais de contato exibidos no topo do seu catálogo</p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-bold text-zinc-700 mb-1">Instagram</label>
+                <input
+                  value={form.settings.social.instagramUrl}
+                  onChange={(e) =>
+                    setForm((prev) => ({
+                      ...prev,
+                      settings: { ...prev.settings, social: { ...prev.settings.social, instagramUrl: e.target.value } }
+                    }))
                   }
-                }
-              }))
-            }
-          />
-        </label>
+                  placeholder="instagram.com/sualoja"
+                  className="w-full rounded-xl border border-zinc-200 px-3.5 py-2.5 text-xs text-zinc-900 focus:border-blue-600 focus:outline-none"
+                />
+              </div>
 
-        <label className="block text-sm font-medium">
-          Cor Secundaria
-          <input
-            type="color"
-            className="mt-1 h-11 w-full rounded-xl border border-zinc-300 px-2"
-            value={form.settings.theme.accentColor}
-            onChange={(event) =>
-              setForm((prev) => ({
-                ...prev,
-                settings: {
-                  ...prev.settings,
-                  theme: {
-                    ...prev.settings.theme,
-                    accentColor: event.target.value
+              <div>
+                <label className="block text-xs font-bold text-zinc-700 mb-1">Facebook</label>
+                <input
+                  value={form.settings.social.facebookUrl}
+                  onChange={(e) =>
+                    setForm((prev) => ({
+                      ...prev,
+                      settings: { ...prev.settings, social: { ...prev.settings.social, facebookUrl: e.target.value } }
+                    }))
                   }
-                }
-              }))
-            }
-          />
-        </label>
+                  placeholder="facebook.com/sualoja"
+                  className="w-full rounded-xl border border-zinc-200 px-3.5 py-2.5 text-xs text-zinc-900 focus:border-blue-600 focus:outline-none"
+                />
+              </div>
 
-        <label className="block text-sm font-medium">
-          Fundo
-          <input
-            type="color"
-            className="mt-1 h-11 w-full rounded-xl border border-zinc-300 px-2"
-            value={form.settings.theme.backgroundColor}
-            onChange={(event) =>
-              setForm((prev) => ({
-                ...prev,
-                settings: {
-                  ...prev.settings,
-                  theme: {
-                    ...prev.settings.theme,
-                    backgroundColor: event.target.value
+              <div>
+                <label className="block text-xs font-bold text-zinc-700 mb-1">TikTok</label>
+                <input
+                  value={form.settings.social.tiktokUrl}
+                  onChange={(e) =>
+                    setForm((prev) => ({
+                      ...prev,
+                      settings: { ...prev.settings, social: { ...prev.settings.social, tiktokUrl: e.target.value } }
+                    }))
                   }
-                }
-              }))
-            }
-          />
-        </label>
-      </div>
+                  placeholder="tiktok.com/@sualoja"
+                  className="w-full rounded-xl border border-zinc-200 px-3.5 py-2.5 text-xs text-zinc-900 focus:border-blue-600 focus:outline-none"
+                />
+              </div>
 
-      <label className="block text-sm font-medium">
-        Taxa de entrega padrao
-        <input
-          type="number"
-          min="0"
-          step="0.01"
-          className="mt-1 w-full rounded-xl border border-zinc-300 px-3 py-2"
-          value={form.settings.checkout.deliveryFee}
-          onChange={(event) =>
-            setForm((prev) => ({
-              ...prev,
-              settings: {
-                ...prev.settings,
-                checkout: {
-                  ...prev.settings.checkout,
-                  deliveryFee: event.target.value
-                }
-              }
-            }))
-          }
-        />
-      </label>
-
-      <div className="space-y-2">
-        <p className="text-sm font-medium">Meios de pagamento aceitos</p>
-        <div className="flex flex-wrap gap-2">
-          {paymentOptions.map((method) => (
-            <button
-              key={method}
-              type="button"
-              onClick={() => togglePayment(method)}
-              className={`rounded-full border px-3 py-1 text-xs font-semibold ${
-                form.settings.checkout.acceptedPayments.includes(method)
-                  ? "border-accent bg-accent text-white"
-                  : "border-zinc-300 bg-white text-zinc-700"
-              }`}
-            >
-              {method}
-            </button>
-          ))}
+              <div>
+                <label className="block text-xs font-bold text-zinc-700 mb-1">Site Oficial</label>
+                <input
+                  value={form.settings.social.siteUrl}
+                  onChange={(e) =>
+                    setForm((prev) => ({
+                      ...prev,
+                      settings: { ...prev.settings, social: { ...prev.settings.social, siteUrl: e.target.value } }
+                    }))
+                  }
+                  placeholder="www.sualoja.com.br"
+                  className="w-full rounded-xl border border-zinc-200 px-3.5 py-2.5 text-xs text-zinc-900 focus:border-blue-600 focus:outline-none"
+                />
+              </div>
+            </div>
+          </div>
         </div>
-      </div>
 
-      <label className="block text-sm font-medium">
-        Template de mensagem do WhatsApp
-        <textarea
-          className="mt-1 min-h-24 w-full rounded-xl border border-zinc-300 px-3 py-2"
-          value={form.settings.checkout.whatsappTemplate}
-          onChange={(event) =>
-            setForm((prev) => ({
-              ...prev,
-              settings: {
-                ...prev.settings,
-                checkout: {
-                  ...prev.settings.checkout,
-                  whatsappTemplate: event.target.value
-                }
-              }
-            }))
-          }
-          required
-        />
-      </label>
+        {/* Right Column (1 col) - Live Visual Theme & Preview */}
+        <div className="space-y-6">
+          {/* Card: Cores do Tema */}
+          <div className="rounded-3xl border border-zinc-200/90 bg-white p-5 sm:p-6 shadow-sm space-y-4">
+            <div className="flex items-center gap-3 pb-3 border-b border-zinc-100">
+              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
+                <Palette className="h-5 w-5" />
+              </div>
+              <div>
+                <h3 className="text-sm font-extrabold text-zinc-900">Personalização de Cores</h3>
+                <p className="text-[11px] text-zinc-500">Defina o visual da vitrine</p>
+              </div>
+            </div>
 
-      <button
-        type="submit"
-        disabled={saving}
-        className="rounded-xl bg-accent px-4 py-2 text-sm font-semibold text-white disabled:opacity-70"
-      >
-        {saving ? "Salvando..." : "Salvar Configuracoes"}
-      </button>
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs font-bold text-zinc-700 mb-1">Cor Primária</label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="color"
+                    value={form.settings.theme.primaryColor}
+                    onChange={(e) =>
+                      setForm((prev) => ({
+                        ...prev,
+                        settings: { ...prev.settings, theme: { ...prev.settings.theme, primaryColor: e.target.value } }
+                      }))
+                    }
+                    className="h-10 w-12 cursor-pointer rounded-xl border border-zinc-200 bg-transparent p-1"
+                  />
+                  <input
+                    type="text"
+                    value={form.settings.theme.primaryColor}
+                    onChange={(e) =>
+                      setForm((prev) => ({
+                        ...prev,
+                        settings: { ...prev.settings, theme: { ...prev.settings.theme, primaryColor: e.target.value } }
+                      }))
+                    }
+                    className="flex-1 rounded-xl border border-zinc-200 px-3 py-2 text-xs font-mono text-zinc-800"
+                  />
+                </div>
+              </div>
 
-      {message ? <p className="text-sm text-zinc-700">{message}</p> : null}
-    </form>
+              <div>
+                <label className="block text-xs font-bold text-zinc-700 mb-1">Cor de Destaque (Acento)</label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="color"
+                    value={form.settings.theme.accentColor}
+                    onChange={(e) =>
+                      setForm((prev) => ({
+                        ...prev,
+                        settings: { ...prev.settings, theme: { ...prev.settings.theme, accentColor: e.target.value } }
+                      }))
+                    }
+                    className="h-10 w-12 cursor-pointer rounded-xl border border-zinc-200 bg-transparent p-1"
+                  />
+                  <input
+                    type="text"
+                    value={form.settings.theme.accentColor}
+                    onChange={(e) =>
+                      setForm((prev) => ({
+                        ...prev,
+                        settings: { ...prev.settings, theme: { ...prev.settings.theme, accentColor: e.target.value } }
+                      }))
+                    }
+                    className="flex-1 rounded-xl border border-zinc-200 px-3 py-2 text-xs font-mono text-zinc-800"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Live Preview Card */}
+          <div className="rounded-3xl border border-zinc-200/90 bg-white p-5 shadow-sm space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold uppercase tracking-wider text-zinc-400">
+                Preview em Tempo Real
+              </span>
+              <span className="flex items-center gap-1 text-[11px] font-bold text-emerald-600">
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                Ao Vivo
+              </span>
+            </div>
+
+            {/* Simulated Store Header */}
+            <div className="rounded-2xl border border-zinc-100 bg-zinc-50 p-4 space-y-3">
+              <div className="flex items-center gap-3">
+                <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-sm">
+                  {form.logoUrl ? (
+                    <Image src={form.logoUrl} alt="Logo" fill className="object-cover" unoptimized />
+                  ) : (
+                    <div className="flex h-full w-full items-center justify-center text-zinc-400">
+                      <Store className="h-5 w-5" />
+                    </div>
+                  )}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <h4 className="truncate text-xs font-extrabold text-zinc-900">
+                    {form.name || "Nome da Loja"}
+                  </h4>
+                  <p className="truncate text-[10px] text-zinc-500">
+                    {form.address || "Endereço da loja"}
+                  </p>
+                </div>
+              </div>
+
+              {/* Simulated Button styled with selected theme */}
+              <div
+                className="flex w-full items-center justify-center gap-1.5 rounded-xl py-2 text-xs font-bold text-white shadow-sm"
+                style={{ backgroundColor: form.settings.theme.primaryColor }}
+              >
+                <Sparkles className="h-3.5 w-3.5" />
+                <span>Botão da Sua Vitrine</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Save Button */}
+          <button
+            type="submit"
+            disabled={saving}
+            className="flex w-full items-center justify-center gap-2 rounded-2xl bg-zinc-900 py-3.5 text-xs font-extrabold text-white shadow-lg transition hover:bg-zinc-800 disabled:opacity-50 active:scale-95"
+          >
+            {saving ? (
+              <span>Salvando alterações...</span>
+            ) : (
+              <>
+                <Check className="h-4 w-4" />
+                <span>Salvar Todas as Configurações</span>
+              </>
+            )}
+          </button>
+        </div>
+      </form>
+    </div>
   );
 }

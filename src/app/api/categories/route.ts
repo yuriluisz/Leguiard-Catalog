@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { resolveAdminStoreContext } from "@/lib/tenant";
 import { categorySchema } from "@/lib/validators";
+import { getOrSetCache, invalidateStoreCache } from "@/lib/cache";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -22,11 +23,13 @@ export async function GET(request: Request) {
       return NextResponse.json({ message: "Loja nao encontrada" }, { status: 404 });
     }
 
-    const categories = await prisma.category.findMany({
-      where: {
-        storeId: store.id
-      },
-      orderBy: [{ displayOrder: "asc" }, { name: "asc" }]
+    const categories = await getOrSetCache(`categories:store:${store.id}`, 600, async () => {
+      return prisma.category.findMany({
+        where: {
+          storeId: store.id
+        },
+        orderBy: [{ displayOrder: "asc" }, { name: "asc" }]
+      });
     });
 
     return NextResponse.json(categories);
@@ -63,6 +66,9 @@ export async function POST(request: Request) {
         storeId: context.store.id
       }
     });
+
+    // Invalidate store cache
+    await invalidateStoreCache(context.store.id, context.store.slug);
 
     return NextResponse.json(created, { status: 201 });
   } catch (error) {

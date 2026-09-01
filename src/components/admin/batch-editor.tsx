@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { Weight, Search, Check, AlertCircle, Sparkles, Filter, CheckSquare } from "lucide-react";
 
 import { fetchJson } from "@/lib/http";
 
@@ -29,11 +30,13 @@ export function BatchEditor() {
   const [filterUnitType, setFilterUnitType] = useState<"ALL" | "UN" | "KG">("ALL");
   const [filterActive, setFilterActive] = useState<"ALL" | "ACTIVE" | "INACTIVE">("ALL");
   const [filterStock, setFilterStock] = useState<"ALL" | "AVAILABLE" | "OUT">("ALL");
+
   const [isActive, setIsActive] = useState("none");
   const [isOutOfStock, setIsOutOfStock] = useState("none");
   const [categoryId, setCategoryId] = useState("");
   const [minQuantity, setMinQuantity] = useState("");
-  const [message, setMessage] = useState<string | null>(null);
+  const [message, setMessage] = useState<{ text: string; type: "success" | "error" } | null>(null);
+  const [saving, setSaving] = useState(false);
 
   function normalizeText(value: string): string {
     return value
@@ -53,7 +56,9 @@ export function BatchEditor() {
   }
 
   useEffect(() => {
-    void loadData().catch((error: Error) => setMessage(error.message));
+    void loadData().catch((error: Error) =>
+      setMessage({ text: error.message, type: "error" })
+    );
   }, []);
 
   const filteredProducts = useMemo(() => {
@@ -64,7 +69,9 @@ export function BatchEditor() {
       const categoryName = normalizeText(product.category?.name ?? "");
 
       const matchesSearch =
-        normalizedSearch.length === 0 || productName.includes(normalizedSearch) || categoryName.includes(normalizedSearch);
+        normalizedSearch.length === 0 ||
+        productName.includes(normalizedSearch) ||
+        categoryName.includes(normalizedSearch);
       const matchesCategory = !filterCategoryId || product.categoryId === filterCategoryId;
       const matchesUnit = filterUnitType === "ALL" || product.unitType === filterUnitType;
       const matchesActive =
@@ -130,192 +137,283 @@ export function BatchEditor() {
     }
 
     if (selectedIds.length === 0) {
-      setMessage("Selecione pelo menos um produto.");
+      setMessage({ text: "Selecione pelo menos um produto na lista abaixo.", type: "error" });
       return;
     }
 
     if (Object.keys(data).length === 0) {
-      setMessage("Defina ao menos uma alteracao para aplicar.");
+      setMessage({ text: "Defina ao menos uma alteração para aplicar em lote.", type: "error" });
       return;
     }
+
+    setSaving(true);
+    setMessage(null);
 
     try {
       await fetchJson("/api/products/batch", {
         method: "PATCH",
-        body: JSON.stringify({
+        json: {
           productIds: selectedIds,
           data
-        })
+        }
       });
 
-      setMessage("Alteracoes aplicadas em lote.");
+      setMessage({
+        text: `Alterações aplicadas com sucesso em ${selectedIds.length} produtos!`,
+        type: "success"
+      });
       setSelected({});
       await loadData();
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Falha na edicao em lote");
+      setMessage({
+        text: error instanceof Error ? error.message : "Falha ao aplicar alterações em lote",
+        type: "error"
+      });
+    } finally {
+      setSaving(false);
     }
   }
 
   return (
-    <section className="space-y-4 rounded-2xl border border-zinc-200 bg-white p-5 shadow-card">
-      <h2 className="font-[var(--font-heading)] text-xl font-semibold">Edicao em Lote</h2>
-
-      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-        <select className="rounded-xl border border-zinc-300 px-3 py-2" value={isActive} onChange={(event) => setIsActive(event.target.value)}>
-          <option value="none">Status Ativo (ignorar)</option>
-          <option value="true">Ativar</option>
-          <option value="false">Desativar</option>
-        </select>
-
-        <select
-          className="rounded-xl border border-zinc-300 px-3 py-2"
-          value={isOutOfStock}
-          onChange={(event) => setIsOutOfStock(event.target.value)}
+    <div className="w-full space-y-6">
+      {/* Feedback Toast */}
+      {message && (
+        <div
+          className={`flex items-center gap-2 rounded-2xl p-4 text-xs font-bold border ${
+            message.type === "success"
+              ? "bg-emerald-50 text-emerald-800 border-emerald-200"
+              : "bg-red-50 text-red-800 border-red-200"
+          }`}
         >
-          <option value="none">Estoque (ignorar)</option>
-          <option value="true">Marcar Esgotado</option>
-          <option value="false">Voltar Estoque</option>
-        </select>
+          {message.type === "success" ? (
+            <Check className="h-4 w-4 shrink-0 text-emerald-600" />
+          ) : (
+            <AlertCircle className="h-4 w-4 shrink-0 text-red-600" />
+          )}
+          <span>{message.text}</span>
+        </div>
+      )}
 
-        <select className="rounded-xl border border-zinc-300 px-3 py-2" value={categoryId} onChange={(event) => setCategoryId(event.target.value)}>
-          <option value="">Categoria (ignorar)</option>
-          {categories.map((category) => (
-            <option key={category.id} value={category.id}>
-              {category.name}
-            </option>
-          ))}
-        </select>
+      {/* Batch Action Toolbar */}
+      <div className="rounded-3xl border border-zinc-200/90 bg-white p-5 sm:p-6 shadow-sm space-y-4">
+        <div className="flex items-center gap-2.5 pb-3 border-b border-zinc-100">
+          <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-purple-50 text-purple-600">
+            <Weight className="h-4 w-4" />
+          </div>
+          <div>
+            <h2 className="text-sm font-extrabold text-zinc-900">Ações em Massa</h2>
+            <p className="text-[11px] text-zinc-500">
+              Defina os campos que deseja alterar nos produtos selecionados
+            </p>
+          </div>
+        </div>
 
-        <input
-          type="number"
-          step="0.001"
-          className="rounded-xl border border-zinc-300 px-3 py-2"
-          placeholder="Min. quantidade"
-          value={minQuantity}
-          onChange={(event) => setMinQuantity(event.target.value)}
-        />
-      </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          <div>
+            <label className="block text-xs font-bold text-zinc-700 mb-1">Status Ativo</label>
+            <select
+              className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-xs font-semibold focus:border-blue-600 focus:outline-none"
+              value={isActive}
+              onChange={(e) => setIsActive(e.target.value)}
+            >
+              <option value="none">Não alterar</option>
+              <option value="true">Ativar na vitrine</option>
+              <option value="false">Desativar da vitrine</option>
+            </select>
+          </div>
 
-      <div className="flex flex-wrap gap-2">
-        <button
-          type="button"
-          onClick={() => void applyBatch()}
-          className="w-full rounded-xl bg-accent px-4 py-2 text-sm font-semibold text-white sm:w-auto"
-        >
-          Aplicar em {selectedIds.length} itens
-        </button>
-      </div>
+          <div>
+            <label className="block text-xs font-bold text-zinc-700 mb-1">Estoque</label>
+            <select
+              className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-xs font-semibold focus:border-blue-600 focus:outline-none"
+              value={isOutOfStock}
+              onChange={(e) => setIsOutOfStock(e.target.value)}
+            >
+              <option value="none">Não alterar</option>
+              <option value="false">Disponível em estoque</option>
+              <option value="true">Marcar como esgotado</option>
+            </select>
+          </div>
 
-      <div className="space-y-2 rounded-xl border border-zinc-200 p-3">
-        <p className="text-sm font-semibold text-zinc-700">Filtros da lista</p>
+          <div>
+            <label className="block text-xs font-bold text-zinc-700 mb-1">Mover para Categoria</label>
+            <select
+              className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-xs font-semibold focus:border-blue-600 focus:outline-none"
+              value={categoryId}
+              onChange={(e) => setCategoryId(e.target.value)}
+            >
+              <option value="">Não alterar</option>
+              {categories.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+          </div>
 
-        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
-          <input
-            className="rounded-xl border border-zinc-300 px-3 py-2"
-            placeholder="Buscar produto ou categoria"
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-          />
+          <div>
+            <label className="block text-xs font-bold text-zinc-700 mb-1">Quantidade Mínima</label>
+            <input
+              type="number"
+              step="0.05"
+              min="0"
+              className="w-full rounded-xl border border-zinc-200 px-3 py-2 text-xs focus:border-blue-600 focus:outline-none"
+              placeholder="Ex: 0.25 ou 1"
+              value={minQuantity}
+              onChange={(e) => setMinQuantity(e.target.value)}
+            />
+          </div>
+        </div>
 
-          <select
-            className="rounded-xl border border-zinc-300 px-3 py-2"
-            value={filterCategoryId}
-            onChange={(event) => setFilterCategoryId(event.target.value)}
+        <div className="flex items-center justify-between pt-3 border-t border-zinc-100">
+          <span className="text-xs font-bold text-zinc-600">
+            {selectedIds.length} {selectedIds.length === 1 ? "produto selecionado" : "produtos selecionados"}
+          </span>
+
+          <button
+            type="button"
+            onClick={() => void applyBatch()}
+            disabled={selectedIds.length === 0 || saving}
+            className="flex items-center gap-1.5 rounded-xl bg-zinc-900 px-5 py-2.5 text-xs font-extrabold text-white shadow-sm transition hover:bg-zinc-800 disabled:opacity-40 active:scale-95"
           >
-            <option value="">Todas categorias</option>
-            {categories.map((category) => (
-              <option key={category.id} value={category.id}>
-                {category.name}
-              </option>
-            ))}
-          </select>
-
-          <select
-            className="rounded-xl border border-zinc-300 px-3 py-2"
-            value={filterUnitType}
-            onChange={(event) => setFilterUnitType(event.target.value as "ALL" | "UN" | "KG")}
-          >
-            <option value="ALL">Todas unidades</option>
-            <option value="UN">Somente UN</option>
-            <option value="KG">Somente KG</option>
-          </select>
-
-          <select
-            className="rounded-xl border border-zinc-300 px-3 py-2"
-            value={filterActive}
-            onChange={(event) => setFilterActive(event.target.value as "ALL" | "ACTIVE" | "INACTIVE")}
-          >
-            <option value="ALL">Ativo/Inativo</option>
-            <option value="ACTIVE">Somente ativos</option>
-            <option value="INACTIVE">Somente inativos</option>
-          </select>
-
-          <select
-            className="rounded-xl border border-zinc-300 px-3 py-2"
-            value={filterStock}
-            onChange={(event) => setFilterStock(event.target.value as "ALL" | "AVAILABLE" | "OUT")}
-          >
-            <option value="ALL">Todos estoques</option>
-            <option value="AVAILABLE">Somente disponiveis</option>
-            <option value="OUT">Somente esgotados</option>
-          </select>
+            <CheckSquare className="h-4 w-4" />
+            <span>{saving ? "Aplicando..." : `Aplicar em ${selectedIds.length} Itens`}</span>
+          </button>
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center gap-3 rounded-xl border border-zinc-200 bg-zinc-50 p-3">
-        <label className="inline-flex items-center gap-2 text-sm">
-          <input
-            type="checkbox"
-            checked={allFilteredSelected}
-            disabled={filteredIds.length === 0}
-            onChange={(event) => toggleSelectAllFiltered(event.target.checked)}
-          />
-          Selecionar todos {search.trim() ? "(filtrados)" : ""}
-        </label>
+      {/* Filters Bar */}
+      <div className="rounded-3xl border border-zinc-200/90 bg-white p-5 sm:p-6 shadow-sm space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="relative flex-1 max-w-md">
+            <Search className="absolute left-3.5 top-2.5 h-4 w-4 text-zinc-400" />
+            <input
+              type="search"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Buscar produtos para filtrar..."
+              className="w-full rounded-xl border border-zinc-200 pl-10 pr-4 py-2 text-xs focus:border-blue-600 focus:outline-none"
+            />
+          </div>
 
-        <button
-          type="button"
-          className="rounded-lg border border-zinc-300 px-3 py-1 text-xs"
-          disabled={selectedIds.length === 0}
-          onClick={() => setSelected({})}
-        >
-          Limpar selecao
-        </button>
+          <div className="flex flex-wrap items-center gap-2">
+            <select
+              className="rounded-xl border border-zinc-200 bg-white px-3 py-2 text-xs font-semibold focus:border-blue-600 focus:outline-none"
+              value={filterCategoryId}
+              onChange={(e) => setFilterCategoryId(e.target.value)}
+            >
+              <option value="">Todas Categorias</option>
+              {categories.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
 
-        <small className="w-full text-zinc-500 sm:w-auto">
-          {selectedFilteredCount} de {filteredIds.length} visiveis selecionados
-        </small>
-      </div>
+            <select
+              className="rounded-xl border border-zinc-200 bg-white px-3 py-2 text-xs font-semibold focus:border-blue-600 focus:outline-none"
+              value={filterUnitType}
+              onChange={(e) => setFilterUnitType(e.target.value as "ALL" | "UN" | "KG")}
+            >
+              <option value="ALL">Todas Unidades</option>
+              <option value="UN">Somente UN</option>
+              <option value="KG">Somente KG</option>
+            </select>
 
-      <div className="space-y-2">
-        {filteredProducts.map((product) => (
-          <label key={product.id} className="flex flex-col gap-2 rounded-xl border border-zinc-200 p-3 sm:flex-row sm:items-center sm:justify-between">
-            <span className="flex items-start gap-2">
-              <input
-                type="checkbox"
-                checked={Boolean(selected[product.id])}
-                onChange={(event) =>
-                  setSelected((prev) => ({
-                    ...prev,
-                    [product.id]: event.target.checked
-                  }))
-                }
-              />
-              <span className="min-w-0">
-                <strong className="break-words">{product.name}</strong>
-                <small className="ml-0 block text-zinc-500 sm:ml-2 sm:inline">{product.category?.name ?? "Sem categoria"}</small>
-              </span>
-            </span>
+            <select
+              className="rounded-xl border border-zinc-200 bg-white px-3 py-2 text-xs font-semibold focus:border-blue-600 focus:outline-none"
+              value={filterActive}
+              onChange={(e) => setFilterActive(e.target.value as "ALL" | "ACTIVE" | "INACTIVE")}
+            >
+              <option value="ALL">Todos Status</option>
+              <option value="ACTIVE">Somente Ativos</option>
+              <option value="INACTIVE">Somente Inativos</option>
+            </select>
+          </div>
+        </div>
 
-            <small className="text-zinc-500 sm:text-right">
-              {product.unitType} | {product.isActive ? "Ativo" : "Inativo"} | {product.isOutOfStock ? "Esgotado" : "Disponivel"}
-            </small>
+        {/* Selection Controller */}
+        <div className="flex items-center justify-between rounded-2xl bg-zinc-50 px-4 py-2.5 border border-zinc-100">
+          <label className="inline-flex items-center gap-2 text-xs font-bold text-zinc-800 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={allFilteredSelected}
+              disabled={filteredIds.length === 0}
+              onChange={(e) => toggleSelectAllFiltered(e.target.checked)}
+              className="rounded border-zinc-300 text-blue-600 focus:ring-blue-500"
+            />
+            <span>Selecionar todos os {filteredIds.length} produtos filtrados</span>
           </label>
-        ))}
-        {filteredProducts.length === 0 ? <p className="text-sm text-zinc-500">Nenhum produto encontrado com os filtros atuais.</p> : null}
-      </div>
 
-      {message ? <p className="text-sm text-zinc-700">{message}</p> : null}
-    </section>
+          {selectedIds.length > 0 && (
+            <button
+              type="button"
+              onClick={() => setSelected({})}
+              className="text-[11px] font-bold text-zinc-500 hover:text-red-600 transition"
+            >
+              Limpar seleção
+            </button>
+          )}
+        </div>
+
+        {/* Item Rows */}
+        <div className="space-y-2 max-h-[500px] overflow-y-auto">
+          {filteredProducts.map((p) => {
+            const isChecked = Boolean(selected[p.id]);
+            return (
+              <label
+                key={p.id}
+                className={`flex items-center justify-between gap-3 rounded-2xl border p-3.5 transition cursor-pointer ${
+                  isChecked
+                    ? "border-blue-300 bg-blue-50/50 shadow-sm"
+                    : "border-zinc-100 bg-white hover:bg-zinc-50"
+                }`}
+              >
+                <div className="flex items-center gap-3 min-w-0">
+                  <input
+                    type="checkbox"
+                    checked={isChecked}
+                    onChange={(e) =>
+                      setSelected((prev) => ({
+                        ...prev,
+                        [p.id]: e.target.checked
+                      }))
+                    }
+                    className="rounded border-zinc-300 text-blue-600 focus:ring-blue-500"
+                  />
+                  <div className="min-w-0">
+                    <p className="truncate text-xs font-extrabold text-zinc-900">{p.name}</p>
+                    <p className="text-[11px] text-zinc-500">
+                      {p.category?.name || "Sem categoria"} • Unidade: {p.unitType}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 shrink-0">
+                  <span
+                    className={`rounded-full px-2 py-0.5 text-[10px] font-extrabold ${
+                      p.isActive ? "bg-emerald-50 text-emerald-700" : "bg-zinc-100 text-zinc-500"
+                    }`}
+                  >
+                    {p.isActive ? "Ativo" : "Inativo"}
+                  </span>
+                  {p.isOutOfStock && (
+                    <span className="rounded-full bg-red-50 text-red-700 px-2 py-0.5 text-[10px] font-extrabold">
+                      Esgotado
+                    </span>
+                  )}
+                </div>
+              </label>
+            );
+          })}
+
+          {filteredProducts.length === 0 && (
+            <div className="py-10 text-center text-xs text-zinc-500">
+              Nenhum produto corresponde aos filtros informados.
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
   );
 }

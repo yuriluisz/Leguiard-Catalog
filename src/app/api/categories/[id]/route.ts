@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { resolveAdminStoreContext } from "@/lib/tenant";
 import { categorySchema } from "@/lib/validators";
+import { invalidateStoreCache } from "@/lib/cache";
 
 type Context = {
   params: {
@@ -37,6 +38,8 @@ export async function PATCH(request: Request, { params }: Context) {
       },
       data: payload
     });
+
+    await invalidateStoreCache(context.store.id, context.store.slug);
 
     return NextResponse.json(updated);
   } catch (error) {
@@ -92,6 +95,8 @@ export async function DELETE(request: Request, { params }: Context) {
         id: existing.id
       }
     });
+
+    await invalidateStoreCache(context.store.id, context.store.slug);
 
     return NextResponse.json({ ok: true });
   } catch (error) {

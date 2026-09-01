@@ -1,5 +1,5 @@
-import { CategoriesManager } from "@/components/admin/categories-manager";
+import { redirect } from "next/navigation";
 
 export default function AdminCategoriesPage() {
-  return <CategoriesManager />;
+  redirect("/admin/produtos?tab=categories");
 }

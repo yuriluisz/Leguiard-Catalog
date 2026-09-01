@@ -1,5 +1,5 @@
-import { ImportManager } from "@/components/admin/import-manager";
+import { redirect } from "next/navigation";
 
 export default function AdminImportPage() {
-  return <ImportManager />;
+  redirect("/admin/produtos?tab=import");
 }

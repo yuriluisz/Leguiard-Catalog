@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { resolveAdminStoreContext } from "@/lib/tenant";
 import { batchUpdateSchema } from "@/lib/validators";
+import { invalidateStoreCache } from "@/lib/cache";
 
 export async function PATCH(request: Request) {
   const context = await resolveAdminStoreContext(request);
@@ -23,6 +24,9 @@ export async function PATCH(request: Request) {
       },
       data: payload.data
     });
+
+    // Invalidate store cache
+    await invalidateStoreCache(context.store.id, context.store.slug);
 
     return NextResponse.json({
       ok: true,

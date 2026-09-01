@@ -1,6 +1,8 @@
 "use client";
 
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import Link from "next/link";
+import { ShieldCheck, Plus, Search, Store, UserPlus, ArrowLeft, Check, AlertCircle } from "lucide-react";
 
 import { fetchJson } from "@/lib/http";
 
@@ -46,7 +48,7 @@ export function UsersManager() {
   const [search, setSearch] = useState("");
   const [saving, setSaving] = useState(false);
   const [creatingStore, setCreatingStore] = useState(false);
-  const [message, setMessage] = useState<string | null>(null);
+  const [message, setMessage] = useState<{ text: string; type: "success" | "error" } | null>(null);
 
   const loadData = useCallback(async () => {
     const data = await fetchJson<UsersResponse>("/api/admin/users");
@@ -56,19 +58,21 @@ export function UsersManager() {
   }, []);
 
   useEffect(() => {
-    void loadData().catch((error: Error) => setMessage(error.message));
+    void loadData().catch((error: Error) =>
+      setMessage({ text: error.message, type: "error" })
+    );
   }, [loadData]);
 
   const filteredUsers = useMemo(() => {
     const normalized = search.trim().toLowerCase();
-    if (!normalized) {
-      return users;
-    }
+    if (!normalized) return users;
 
     return users.filter((user) => {
       const inName = (user.name ?? "").toLowerCase().includes(normalized);
       const inEmail = user.email.toLowerCase().includes(normalized);
-      const inStore = user.storeMembership.some((item) => item.store.slug.toLowerCase().includes(normalized));
+      const inStore = user.storeMembership.some((item) =>
+        item.store.slug.toLowerCase().includes(normalized)
+      );
       return inName || inEmail || inStore;
     });
   }, [search, users]);
@@ -81,20 +85,23 @@ export function UsersManager() {
     try {
       const result = await fetchJson<{ message: string }>("/api/admin/users", {
         method: "POST",
-        body: JSON.stringify({
+        json: {
           name,
           email,
           password,
           storeSlug,
           role
-        })
+        }
       });
 
-      setMessage(result.message);
+      setMessage({ text: result.message, type: "success" });
       setPassword("");
       await loadData();
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Falha ao salvar usuario");
+      setMessage({
+        text: error instanceof Error ? error.message : "Falha ao salvar usuário",
+        type: "error"
+      });
     } finally {
       setSaving(false);
     }
@@ -108,15 +115,15 @@ export function UsersManager() {
     try {
       const result = await fetchJson<{ message: string; store: StoreOption }>("/api/admin/stores", {
         method: "POST",
-        body: JSON.stringify({
+        json: {
           slug: storeSlugNew,
           name: storeName,
           address: storeAddress,
           phone: storePhone
-        })
+        }
       });
 
-      setMessage(result.message);
+      setMessage({ text: result.message, type: "success" });
       setStoreName("");
       setStoreSlugNew("");
       setStoreAddress("");
@@ -124,204 +131,264 @@ export function UsersManager() {
       setStoreSlug(result.store.slug);
       await loadData();
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Falha ao criar loja");
+      setMessage({
+        text: error instanceof Error ? error.message : "Falha ao criar loja",
+        type: "error"
+      });
     } finally {
       setCreatingStore(false);
     }
   }
 
   return (
-    <section className="space-y-4 rounded-2xl border border-zinc-200 bg-white p-5 shadow-card">
-      <header>
-        <p className="section-title">Admin geral</p>
-        <h2 className="font-[var(--font-heading)] text-xl font-semibold">Gestao de Usuarios</h2>
-        <p className="mt-1 text-sm text-zinc-600">Crie lojas, logins, redefina senha e vincule usuario sem depender de console.</p>
-      </header>
+    <div className="w-full space-y-6">
+      {/* Header & Back Link */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <Link
+            href="/admin"
+            className="inline-flex items-center gap-1 text-xs font-bold text-zinc-500 hover:text-zinc-900 transition mb-2"
+          >
+            <ArrowLeft className="h-3.5 w-3.5" />
+            <span>Voltar ao Painel</span>
+          </Link>
+          <div className="flex items-center gap-2">
+            <h1 className="text-xl sm:text-2xl font-extrabold text-zinc-900 tracking-tight">
+              Gestão de Usuários e Lojas
+            </h1>
+            <span className="rounded-full bg-purple-50 border border-purple-200 px-2.5 py-0.5 text-[11px] font-bold text-purple-700">
+              Super Admin
+            </span>
+          </div>
+          <p className="text-xs text-zinc-500 mt-0.5">
+            Crie novas lojas, provisione contas de lojistas e vincule permissões no sistema.
+          </p>
+        </div>
+      </div>
 
-      <form onSubmit={onCreateStore} className="grid gap-3 rounded-xl border border-zinc-200 bg-zinc-50 p-4 md:grid-cols-2">
-        <h3 className="md:col-span-2 font-[var(--font-heading)] text-lg font-semibold text-zinc-900">Criar Nova Loja</h3>
+      {/* Feedback Toast */}
+      {message && (
+        <div
+          className={`flex items-center gap-2 rounded-2xl p-4 text-xs font-bold border ${
+            message.type === "success"
+              ? "bg-emerald-50 text-emerald-800 border-emerald-200"
+              : "bg-red-50 text-red-800 border-red-200"
+          }`}
+        >
+          {message.type === "success" ? (
+            <Check className="h-4 w-4 shrink-0 text-emerald-600" />
+          ) : (
+            <AlertCircle className="h-4 w-4 shrink-0 text-red-600" />
+          )}
+          <span>{message.text}</span>
+        </div>
+      )}
 
-        <label className="text-sm font-medium">
-          Nome da loja
-          <input
-            className="mt-1 w-full rounded-xl border border-zinc-300 bg-white px-3 py-2"
-            value={storeName}
-            onChange={(event) => setStoreName(event.target.value)}
-            placeholder="Ex.: Qualivida Centro"
-            required
-          />
-        </label>
+      {/* Forms Grid (2 cols) */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Form 1: Criar Loja */}
+        <form
+          onSubmit={onCreateStore}
+          className="rounded-3xl border border-zinc-200/90 bg-white p-5 sm:p-6 shadow-sm space-y-4"
+        >
+          <div className="flex items-center gap-2.5 pb-3 border-b border-zinc-100">
+            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
+              <Store className="h-4 w-4" />
+            </div>
+            <div>
+              <h2 className="text-sm font-extrabold text-zinc-900">Criar Nova Loja</h2>
+              <p className="text-[11px] text-zinc-500">Adicione uma nova loja no catálogo multi-tenant</p>
+            </div>
+          </div>
 
-        <label className="text-sm font-medium">
-          Slug da loja
-          <input
-            className="mt-1 w-full rounded-xl border border-zinc-300 bg-white px-3 py-2"
-            value={storeSlugNew}
-            onChange={(event) => setStoreSlugNew(event.target.value.toLowerCase())}
-            placeholder="qualivida-centro"
-            required
-          />
-        </label>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-bold text-zinc-700 mb-1">Nome da Loja *</label>
+              <input
+                required
+                value={storeName}
+                onChange={(e) => setStoreName(e.target.value)}
+                placeholder="Ex: Mercearia Central"
+                className="w-full rounded-xl border border-zinc-200 px-3 py-2 text-xs focus:border-blue-600 focus:outline-none"
+              />
+            </div>
 
-        <label className="text-sm font-medium">
-          Endereco
-          <input
-            className="mt-1 w-full rounded-xl border border-zinc-300 bg-white px-3 py-2"
-            value={storeAddress}
-            onChange={(event) => setStoreAddress(event.target.value)}
-            placeholder="Rua, numero e bairro"
-            required
-          />
-        </label>
+            <div>
+              <label className="block text-xs font-bold text-zinc-700 mb-1">Slug da URL *</label>
+              <input
+                required
+                value={storeSlugNew}
+                onChange={(e) => setStoreSlugNew(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""))}
+                placeholder="mercearia-central"
+                className="w-full rounded-xl border border-zinc-200 px-3 py-2 text-xs focus:border-blue-600 focus:outline-none"
+              />
+            </div>
 
-        <label className="text-sm font-medium">
-          WhatsApp da loja
-          <input
-            className="mt-1 w-full rounded-xl border border-zinc-300 bg-white px-3 py-2"
-            value={storePhone}
-            onChange={(event) => setStorePhone(event.target.value)}
-            placeholder="5511999999999"
-            required
-          />
-        </label>
+            <div className="sm:col-span-2">
+              <label className="block text-xs font-bold text-zinc-700 mb-1">Endereço de Retirada *</label>
+              <input
+                required
+                value={storeAddress}
+                onChange={(e) => setStoreAddress(e.target.value)}
+                placeholder="Rua Exemplo, 123"
+                className="w-full rounded-xl border border-zinc-200 px-3 py-2 text-xs focus:border-blue-600 focus:outline-none"
+              />
+            </div>
 
-        <div className="md:col-span-2">
+            <div className="sm:col-span-2">
+              <label className="block text-xs font-bold text-zinc-700 mb-1">WhatsApp de Pedidos *</label>
+              <input
+                required
+                value={storePhone}
+                onChange={(e) => setStorePhone(e.target.value)}
+                placeholder="5511999999999"
+                className="w-full rounded-xl border border-zinc-200 px-3 py-2 text-xs focus:border-blue-600 focus:outline-none"
+              />
+            </div>
+          </div>
+
           <button
             type="submit"
             disabled={creatingStore}
-            className="rounded-xl bg-leaf px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
+            className="flex w-full items-center justify-center gap-1.5 rounded-xl bg-zinc-900 py-2.5 text-xs font-bold text-white shadow-sm transition hover:bg-zinc-800 disabled:opacity-50 active:scale-95"
           >
-            {creatingStore ? "Criando loja..." : "Criar loja"}
+            <Plus className="h-4 w-4" />
+            <span>{creatingStore ? "Criando loja..." : "Criar Loja"}</span>
           </button>
-        </div>
-      </form>
+        </form>
 
-      <form onSubmit={onSubmit} className="grid gap-3 rounded-xl border border-zinc-200 bg-zinc-50 p-4 md:grid-cols-2">
-        <h3 className="md:col-span-2 font-[var(--font-heading)] text-lg font-semibold text-zinc-900">Criar Login e Vincular Loja</h3>
-        <label className="text-sm font-medium">
-          Nome
-          <input
-            className="mt-1 w-full rounded-xl border border-zinc-300 bg-white px-3 py-2"
-            value={name}
-            onChange={(event) => setName(event.target.value)}
-            placeholder="Ex.: Joao Silva"
-          />
-        </label>
+        {/* Form 2: Criar/Vincular Usuário */}
+        <form
+          onSubmit={onSubmit}
+          className="rounded-3xl border border-zinc-200/90 bg-white p-5 sm:p-6 shadow-sm space-y-4"
+        >
+          <div className="flex items-center gap-2.5 pb-3 border-b border-zinc-100">
+            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-purple-50 text-purple-600">
+              <UserPlus className="h-4 w-4" />
+            </div>
+            <div>
+              <h2 className="text-sm font-extrabold text-zinc-900">Novo Usuário / Vínculo</h2>
+              <p className="text-[11px] text-zinc-500">Crie ou atualize senha e vincule a uma loja</p>
+            </div>
+          </div>
 
-        <label className="text-sm font-medium">
-          Email
-          <input
-            type="email"
-            required
-            className="mt-1 w-full rounded-xl border border-zinc-300 bg-white px-3 py-2"
-            value={email}
-            onChange={(event) => setEmail(event.target.value)}
-            placeholder="usuario@empresa.com"
-          />
-        </label>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-bold text-zinc-700 mb-1">Nome</label>
+              <input
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="Nome do Lojista"
+                className="w-full rounded-xl border border-zinc-200 px-3 py-2 text-xs focus:border-blue-600 focus:outline-none"
+              />
+            </div>
 
-        <label className="text-sm font-medium">
-          Senha
-          <input
-            type="password"
-            required
-            minLength={6}
-            className="mt-1 w-full rounded-xl border border-zinc-300 bg-white px-3 py-2"
-            value={password}
-            onChange={(event) => setPassword(event.target.value)}
-            placeholder="Minimo 6 caracteres"
-          />
-        </label>
+            <div>
+              <label className="block text-xs font-bold text-zinc-700 mb-1">E-mail *</label>
+              <input
+                required
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="lojista@exemplo.com"
+                className="w-full rounded-xl border border-zinc-200 px-3 py-2 text-xs focus:border-blue-600 focus:outline-none"
+              />
+            </div>
 
-        <label className="text-sm font-medium">
-          Loja (slug)
-          <select
-            required
-            className="mt-1 w-full rounded-xl border border-zinc-300 bg-white px-3 py-2"
-            value={storeSlug}
-            onChange={(event) => setStoreSlug(event.target.value)}
-          >
-            {stores.length === 0 ? <option value="">Sem lojas cadastradas</option> : null}
-            {stores.map((store) => (
-              <option key={store.id} value={store.slug}>
-                {store.name} ({store.slug})
-              </option>
-            ))}
-          </select>
-        </label>
+            <div>
+              <label className="block text-xs font-bold text-zinc-700 mb-1">Senha de Acesso *</label>
+              <input
+                required
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="******"
+                className="w-full rounded-xl border border-zinc-200 px-3 py-2 text-xs focus:border-blue-600 focus:outline-none"
+              />
+            </div>
 
-        <label className="text-sm font-medium">
-          Perfil
-          <select className="mt-1 w-full rounded-xl border border-zinc-300 bg-white px-3 py-2" value={role} onChange={(event) => setRole(event.target.value)}>
-            {roleOptions.map((option) => (
-              <option key={option} value={option}>
-                {option}
-              </option>
-            ))}
-          </select>
-        </label>
+            <div>
+              <label className="block text-xs font-bold text-zinc-700 mb-1">Loja Vinculada *</label>
+              <select
+                value={storeSlug}
+                onChange={(e) => setStoreSlug(e.target.value)}
+                className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-xs font-semibold focus:border-blue-600 focus:outline-none"
+              >
+                {stores.map((s) => (
+                  <option key={s.id} value={s.slug}>
+                    {s.name} ({s.slug})
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
 
-        <div className="md:col-span-2">
           <button
             type="submit"
-            disabled={saving || stores.length === 0}
-            className="rounded-xl bg-accent px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
+            disabled={saving}
+            className="flex w-full items-center justify-center gap-1.5 rounded-xl bg-zinc-900 py-2.5 text-xs font-bold text-white shadow-sm transition hover:bg-zinc-800 disabled:opacity-50 active:scale-95"
           >
-            {saving ? "Salvando..." : "Salvar usuario"}
+            <UserPlus className="h-4 w-4" />
+            <span>{saving ? "Salvando..." : "Salvar Usuário"}</span>
           </button>
+        </form>
+      </div>
+
+      {/* Users Table Card */}
+      <div className="rounded-3xl border border-zinc-200/90 bg-white p-5 sm:p-6 shadow-sm space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="relative flex-1 max-w-md">
+            <Search className="absolute left-3.5 top-2.5 h-4 w-4 text-zinc-400" />
+            <input
+              type="search"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Buscar usuários por nome, email ou loja..."
+              className="w-full rounded-xl border border-zinc-200 pl-10 pr-4 py-2 text-xs focus:border-blue-600 focus:outline-none"
+            />
+          </div>
+
+          <span className="text-xs font-bold text-zinc-500">
+            Total: <strong className="text-zinc-900">{filteredUsers.length}</strong> usuários cadastrados
+          </span>
         </div>
-      </form>
 
-      <div className="space-y-2">
-        <input
-          className="w-full rounded-xl border border-zinc-300 bg-white px-3 py-2"
-          placeholder="Buscar por nome, email ou slug da loja"
-          value={search}
-          onChange={(event) => setSearch(event.target.value)}
-        />
-      </div>
-
-      <div className="overflow-x-auto rounded-xl border border-zinc-200">
-        <table className="min-w-full text-left text-sm">
-          <thead className="bg-zinc-50">
-            <tr>
-              <th className="px-3 py-2 font-semibold">Usuario</th>
-              <th className="px-3 py-2 font-semibold">Lojas</th>
-              <th className="px-3 py-2 font-semibold">Criado em</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filteredUsers.map((user) => (
-              <tr key={user.id} className="border-t border-zinc-100 align-top">
-                <td className="px-3 py-3">
-                  <p className="font-medium text-zinc-900">{user.name || "Sem nome"}</p>
-                  <p className="text-xs text-zinc-600">{user.email}</p>
-                </td>
-                <td className="px-3 py-3">
-                  <div className="flex flex-wrap gap-1.5">
-                    {user.storeMembership.map((membership) => (
-                      <span key={membership.id} className="rounded-full border border-zinc-200 bg-zinc-50 px-2 py-1 text-xs text-zinc-700">
-                        {membership.store.slug} ({membership.role})
-                      </span>
-                    ))}
-                    {user.storeMembership.length === 0 ? <span className="text-xs text-zinc-500">Sem vinculo</span> : null}
-                  </div>
-                </td>
-                <td className="px-3 py-3 text-xs text-zinc-600">{new Date(user.createdAt).toLocaleString("pt-BR")}</td>
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-xs">
+            <thead>
+              <tr className="border-b border-zinc-100 text-zinc-400 uppercase tracking-wider font-bold">
+                <th className="pb-3 px-3">Usuário</th>
+                <th className="pb-3 px-3">E-mail</th>
+                <th className="pb-3 px-3">Lojas Vinculadas</th>
+                <th className="pb-3 px-3">Cadastro</th>
               </tr>
-            ))}
-            {filteredUsers.length === 0 ? (
-              <tr>
-                <td className="px-3 py-6 text-center text-sm text-zinc-500" colSpan={3}>
-                  Nenhum usuario encontrado.
-                </td>
-              </tr>
-            ) : null}
-          </tbody>
-        </table>
+            </thead>
+            <tbody className="divide-y divide-zinc-100">
+              {filteredUsers.map((u) => (
+                <tr key={u.id} className="hover:bg-zinc-50/80 transition-colors">
+                  <td className="py-3.5 px-3 font-bold text-zinc-900">{u.name || "Sem nome"}</td>
+                  <td className="py-3.5 px-3 font-mono text-zinc-600">{u.email}</td>
+                  <td className="py-3.5 px-3">
+                    <div className="flex flex-wrap gap-1">
+                      {u.storeMembership.map((m) => (
+                        <span
+                          key={m.id}
+                          className="inline-flex items-center rounded-lg bg-zinc-100 px-2 py-0.5 text-[11px] font-semibold text-zinc-800"
+                        >
+                          {m.store.name} ({m.role})
+                        </span>
+                      ))}
+                    </div>
+                  </td>
+                  <td className="py-3.5 px-3 text-zinc-500">
+                    {new Date(u.createdAt).toLocaleDateString("pt-BR")}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
-
-      {message ? <p className="text-sm text-zinc-700">{message}</p> : null}
-    </section>
+    </div>
   );
 }

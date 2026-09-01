@@ -4,6 +4,7 @@ import { z } from "zod";
 import { mapImportRow } from "@/lib/csv-mapper";
 import { prisma } from "@/lib/prisma";
 import { resolveAdminStoreContext } from "@/lib/tenant";
+import { invalidateStoreCache } from "@/lib/cache";
 
 const mappingSchema = z.object({
   name: z.string().min(1),
@@ -148,6 +149,9 @@ export async function POST(request: Request) {
         { status: 400 }
       );
     }
+
+    // Invalidate store cache after successful import
+    await invalidateStoreCache(context.store.id, context.store.slug);
 
     return NextResponse.json({
       ok: true,

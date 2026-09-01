@@ -1,5 +1,10 @@
-import { ProductsManager } from "@/components/admin/products-manager";
+import { Suspense } from "react";
+import { ProductsHub } from "@/components/admin/products-hub";
 
 export default function AdminProductsPage() {
-  return <ProductsManager />;
+  return (
+    <Suspense fallback={<div className="p-8 text-center text-xs text-zinc-500">Carregando catálogo...</div>}>
+      <ProductsHub />
+    </Suspense>
+  );
 }

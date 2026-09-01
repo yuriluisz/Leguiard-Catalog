@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { serializeProduct } from "@/lib/serialize";
 import { resolveAdminStoreContext } from "@/lib/tenant";
 import { productSchema } from "@/lib/validators";
+import { invalidateStoreCache } from "@/lib/cache";
 
 type Context = {
   params: {
@@ -71,6 +72,9 @@ export async function PATCH(request: Request, { params }: Context) {
       }
     });
 
+    // Invalidate store cache
+    await invalidateStoreCache(context.store.id, context.store.slug);
+
     return NextResponse.json(serializeProduct(updated));
   } catch (error) {
     return NextResponse.json(
@@ -109,6 +113,9 @@ export async function DELETE(request: Request, { params }: Context) {
         id: existing.id
       }
     });
+
+    // Invalidate store cache
+    await invalidateStoreCache(context.store.id, context.store.slug);
 
     return NextResponse.json({ ok: true });
   } catch (error) {

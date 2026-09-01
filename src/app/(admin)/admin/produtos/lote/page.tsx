@@ -1,5 +1,5 @@
-import { BatchEditor } from "@/components/admin/batch-editor";
+import { redirect } from "next/navigation";
 
 export default function AdminBatchPage() {
-  return <BatchEditor />;
+  redirect("/admin/produtos?tab=batch");
 }

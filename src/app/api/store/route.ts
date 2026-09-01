@@ -3,26 +3,35 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { normalizeStoreSettings, resolveAdminStoreContext } from "@/lib/tenant";
 import { storeSchema } from "@/lib/validators";
+import { getOrSetCache, invalidateStoreCache } from "@/lib/cache";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const slug = searchParams.get("slug")?.trim().toLowerCase();
 
   if (slug) {
-    const store = await prisma.store.findUnique({
-      where: {
-        slug
+    const cachedStore = await getOrSetCache(`store:slug:${slug}`, 600, async () => {
+      const store = await prisma.store.findUnique({
+        where: {
+          slug
+        }
+      });
+
+      if (!store) {
+        return null;
       }
+
+      return {
+        ...store,
+        settings: normalizeStoreSettings(store.settings)
+      };
     });
 
-    if (!store) {
+    if (!cachedStore) {
       return NextResponse.json({ message: "Loja nao encontrada" }, { status: 404 });
     }
 
-    return NextResponse.json({
-      ...store,
-      settings: normalizeStoreSettings(store.settings)
-    });
+    return NextResponse.json(cachedStore);
   }
 
   const context = await resolveAdminStoreContext(request);
@@ -59,6 +68,12 @@ export async function PUT(request: Request) {
         settings: payload.settings
       }
     });
+
+    // Invalidate caches for this store
+    await invalidateStoreCache(context.store.id, context.store.slug);
+    if (payload.slug !== context.store.slug) {
+      await invalidateStoreCache(context.store.id, payload.slug);
+    }
 
     return NextResponse.json({
       ...updated,

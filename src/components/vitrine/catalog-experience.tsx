@@ -1,13 +1,19 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useState } from "react";
-import Image from "next/image";
+import { useEffect, useMemo, useState } from "react";
+import { Search, ShoppingBag } from "lucide-react";
 
-import { formatBRL } from "@/lib/format";
 import { fetchJson } from "@/lib/http";
-import { getUnitBadge } from "@/lib/pricing";
 import { useCartStore } from "@/stores/cart-store";
-import type { CartItem, CheckoutPayload, PaymentMethod, ProductRecord, StoreRecord } from "@/types";
+import type { CartItem, CheckoutPayload, ProductRecord, StoreRecord } from "@/types";
+
+import { StoreHeader } from "./store-header";
+import { CategoryNav } from "./category-nav";
+import { ProductCard } from "./product-card";
+import { FloatingCartBar } from "./floating-cart-bar";
+import { CartDrawer } from "./cart-drawer";
+import { LeadModal } from "./lead-modal";
+import { WhatsAppFloatingButton } from "./whatsapp-floating-button";
 
 type Category = {
   id: string;
@@ -15,30 +21,7 @@ type Category = {
   displayOrder: number;
 };
 
-type CheckoutResponse = {
-  url: string;
-};
-
-type LeadForm = {
-  name: string;
-  phone: string;
-};
-
-const paymentLabel: Record<PaymentMethod, string> = {
-  PIX: "Pix",
-  CARTAO: "Cartao",
-  DINHEIRO: "Dinheiro"
-};
-
-const DEFAULT_PAYMENTS: PaymentMethod[] = ["PIX", "CARTAO", "DINHEIRO"];
 const EMPTY_CART: CartItem[] = [];
-
-type SocialLink = {
-  key: string;
-  label: string;
-  href: string;
-  symbol: string;
-};
 
 const initialCheckout: CheckoutPayload = {
   customerName: "",
@@ -49,19 +32,6 @@ const initialCheckout: CheckoutPayload = {
   changeFor: "",
   notes: ""
 };
-
-function toExternalHref(value: string | null | undefined): string | null {
-  const normalized = String(value ?? "").trim();
-  if (!normalized) {
-    return null;
-  }
-
-  if (normalized.startsWith("http://") || normalized.startsWith("https://")) {
-    return normalized;
-  }
-
-  return `https://${normalized}`;
-}
 
 export function CatalogExperience({
   slug,
@@ -74,22 +44,18 @@ export function CatalogExperience({
   initialCategories: Category[];
   initialProducts: ProductRecord[];
 }) {
-  const [isLoading, setIsLoading] = useState(false);
-  const [store, setStore] = useState<StoreRecord | null>(initialStore);
-  const [categories, setCategories] = useState<Category[]>(initialCategories);
-  const [products, setProducts] = useState<ProductRecord[]>(initialProducts);
+  const [store] = useState<StoreRecord>(initialStore);
+  const [categories] = useState<Category[]>(initialCategories);
+  const [products] = useState<ProductRecord[]>(initialProducts);
+
   const [search, setSearch] = useState("");
   const [activeCategory, setActiveCategory] = useState<string>("all");
-  const [showMobileCategories, setShowMobileCategories] = useState(false);
   const [canViewAdminLink, setCanViewAdminLink] = useState(false);
   const [quantities, setQuantities] = useState<Record<string, string>>({});
   const [checkout, setCheckout] = useState<CheckoutPayload>(initialCheckout);
-  const [message, setMessage] = useState<string | null>(null);
-  const [checkingOut, setCheckingOut] = useState(false);
   const [cartOpen, setCartOpen] = useState(false);
-
   const [showLeadModal, setShowLeadModal] = useState(false);
-  const [lead, setLead] = useState<LeadForm>({ name: "", phone: "" });
+  const [lastAddedId, setLastAddedId] = useState<string | null>(null);
 
   const cartItems = useCartStore((state) => state.itemsByStore[slug] ?? EMPTY_CART);
   const addItem = useCartStore((state) => state.addItem);
@@ -98,18 +64,15 @@ export function CatalogExperience({
 
   const leadStorageKey = `leadCaptured:${slug}`;
 
-
-
+  // Check admin access
   useEffect(() => {
     let cancelled = false;
-
     const checkAccess = async () => {
       try {
         const encodedSlug = encodeURIComponent(slug);
         const response = await fetchJson<{ canAccess: boolean }>(`/api/store/access?slug=${encodedSlug}`, {
           cache: "no-store"
         });
-
         if (!cancelled) {
           setCanViewAdminLink(Boolean(response.canAccess));
         }
@@ -119,794 +82,217 @@ export function CatalogExperience({
         }
       }
     };
-
     void checkAccess();
-
     return () => {
       cancelled = true;
     };
   }, [slug]);
 
-  useEffect(() => {
-    if (!store) {
-      return;
-    }
-
-    const acceptedPayments = store.settings.checkout.acceptedPayments;
-    if (!acceptedPayments.includes(checkout.paymentMethod)) {
-      const fallbackPayment = acceptedPayments[0] ?? "PIX";
-      setCheckout((prev) => {
-        if (prev.paymentMethod === fallbackPayment) {
-          return prev;
-        }
-
-        return {
-          ...prev,
-          paymentMethod: fallbackPayment
-        };
-      });
-    }
-  }, [checkout.paymentMethod, store]);
-
+  // Lead modal timer
   useEffect(() => {
     const alreadyCaptured = localStorage.getItem(leadStorageKey);
     if (!alreadyCaptured) {
-      const timer = window.setTimeout(() => setShowLeadModal(true), 1200);
+      const timer = window.setTimeout(() => setShowLeadModal(true), 2000);
       return () => window.clearTimeout(timer);
     }
-
-    return () => undefined;
   }, [leadStorageKey]);
 
-  const visibleProducts = useMemo(() => {
-    const normalizedSearch = search.trim().toLowerCase();
-
-    return products.filter((product) => {
-      const matchesSearch = product.name.toLowerCase().includes(normalizedSearch);
-      const matchesCategory = activeCategory === "all" || product.categoryId === activeCategory;
-      return matchesSearch && matchesCategory;
-    });
-  }, [activeCategory, products, search]);
-
-  const cartTotal = useMemo(() => cartItems.reduce((acc, item) => acc + item.subtotal, 0), [cartItems]);
+  // Sync accepted payment method fallback
+  useEffect(() => {
+    const accepted = store?.settings.checkout.acceptedPayments || [];
+    if (accepted.length > 0 && !accepted.includes(checkout.paymentMethod)) {
+      setCheckout((prev) => ({
+        ...prev,
+        paymentMethod: accepted[0]
+      }));
+    }
+  }, [store?.settings.checkout.acceptedPayments, checkout.paymentMethod]);
 
   const categoryCounts = useMemo(() => {
     const counts: Record<string, number> = {};
-
-    for (const product of products) {
-      counts[product.categoryId] = (counts[product.categoryId] ?? 0) + 1;
-    }
-
+    products.forEach((product) => {
+      counts[product.categoryId] = (counts[product.categoryId] || 0) + 1;
+    });
     return counts;
   }, [products]);
 
-  const activeCategoryLabel = useMemo(() => {
-    if (activeCategory === "all") {
-      return "Todas";
-    }
+  const visibleProducts = useMemo(() => {
+    return products.filter((product) => {
+      const matchesSearch =
+        !search ||
+        product.name.toLowerCase().includes(search.toLowerCase()) ||
+        product.description?.toLowerCase().includes(search.toLowerCase());
 
-    return categories.find((category) => category.id === activeCategory)?.name ?? "Categoria";
-  }, [activeCategory, categories]);
+      const matchesCategory = activeCategory === "all" || product.categoryId === activeCategory;
 
-  const activeCategoryCount = activeCategory === "all" ? products.length : (categoryCounts[activeCategory] ?? 0);
+      return matchesSearch && matchesCategory;
+    });
+  }, [products, search, activeCategory]);
 
-  const themeStyle = useMemo(
-    () =>
-      ({
-        "--store-primary": store?.settings.theme.primaryColor ?? "#bc5a2b",
-        "--store-accent": store?.settings.theme.accentColor ?? "#4b6a39",
-        "--store-bg": store?.settings.theme.backgroundColor ?? "#f4f2eb"
-      }) as React.CSSProperties,
-    [store]
-  );
+  const handleQuantityChange = (id: string, value: string) => {
+    setQuantities((prev) => ({
+      ...prev,
+      [id]: value
+    }));
+  };
 
-  function getDefaultQuantity(product: ProductRecord): number {
-    if (product.unitType === "UN") {
-      return Math.max(1, Math.ceil(product.minQuantity));
-    }
+  const handleAddToCart = (product: ProductRecord) => {
+    const isKG = product.unitType === "KG";
+    const minQty = Number(product.minQuantity) || (isKG ? 0.25 : 1);
+    const rawQty = quantities[product.id] ?? String(minQty);
+    const quantity = Number(rawQty.replace(",", ".")) || minQty;
 
-    return Math.max(0.05, product.minQuantity);
-  }
-
-  function readQuantity(product: ProductRecord): number {
-    const raw = quantities[product.id];
-    if (!raw) {
-      return getDefaultQuantity(product);
-    }
-
-    const parsed = Number(raw.replace(",", "."));
-    if (!Number.isFinite(parsed) || parsed <= 0) {
-      return getDefaultQuantity(product);
-    }
-
-    if (product.unitType === "UN") {
-      return Math.max(Math.ceil(product.minQuantity), Math.round(parsed));
-    }
-
-    return Math.max(product.minQuantity, parsed);
-  }
-
-  function formatMinimumLabel(product: ProductRecord): string {
-    if (product.unitType === "UN") {
-      return `${Math.max(1, Math.ceil(product.minQuantity))} un`;
-    }
-
-    if (product.minQuantity < 1) {
-      return `${Math.round(product.minQuantity * 1000)}g`;
-    }
-
-    return `${product.minQuantity} kg`;
-  }
-
-  function addToCart(product: ProductRecord) {
-    const quantity = readQuantity(product);
-
-    if (quantity < product.minQuantity) {
-      setMessage(`Quantidade minima para ${product.name} e ${formatMinimumLabel(product)}.`);
-      return;
-    }
+    const unitPrice = Number(product.price);
+    const subtotal = Math.round(unitPrice * quantity * 100) / 100;
 
     const item: CartItem = {
       productId: product.id,
       productName: product.name,
       unitType: product.unitType,
-      unitPrice: product.price,
+      unitPrice,
       quantity,
-      subtotal: Number((product.price * quantity).toFixed(2))
+      subtotal
     };
 
     addItem(slug, item);
-    setMessage(`${product.name} adicionado ao carrinho.`);
-  }
 
-  async function submitLead(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
+    // Trigger visual feedback
+    setLastAddedId(product.id);
+    setTimeout(() => {
+      setLastAddedId(null);
+    }, 1500);
+  };
 
-    try {
-      await fetchJson("/api/leads", {
-        method: "POST",
-        body: JSON.stringify({
-          ...lead,
-          slug
-        })
-      });
+  const handleLeadCaptured = (name: string, phone: string) => {
+    setCheckout((prev) => ({
+      ...prev,
+      customerName: name,
+      customerPhone: phone
+    }));
+  };
 
-      localStorage.setItem(leadStorageKey, "1");
-      setShowLeadModal(false);
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Falha ao registrar lead");
-    }
-  }
-
-  async function handleCheckout() {
-    if (cartItems.length === 0) {
-      setMessage("Adicione produtos ao carrinho antes de finalizar.");
-      return;
-    }
-
-    if (!checkout.customerName || !checkout.customerPhone) {
-      setMessage("Informe nome e WhatsApp para finalizar.");
-      return;
-    }
-
-    if (checkout.fulfillmentType === "ENTREGA" && !checkout.address) {
-      setMessage("Informe o endereco de entrega.");
-      return;
-    }
-
-    setCheckingOut(true);
-    setMessage(null);
-
-    try {
-      const response = await fetchJson<CheckoutResponse>("/api/checkout", {
-        method: "POST",
-        body: JSON.stringify({
-          ...checkout,
-          slug,
-          items: cartItems
-        })
-      });
-
-      if (!response.url) {
-        throw new Error("Nao foi possivel gerar o link do WhatsApp");
-      }
-
-      // iOS/Safari can block async popups; fallback to same-tab redirect.
-      const popup = window.open(response.url, "_blank", "noopener,noreferrer");
-
-      if (!popup) {
-        window.location.assign(response.url);
-        return;
-      }
-
-      clearStore(slug);
-      setCartOpen(false);
-      setMessage("Pedido montado e enviado para o WhatsApp.");
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Falha no checkout");
-    } finally {
-      setCheckingOut(false);
-    }
-  }
-
-  const acceptedPayments = store?.settings.checkout.acceptedPayments ?? DEFAULT_PAYMENTS;
-
-  const socialLinks = useMemo<SocialLink[]>(() => {
-    if (!store) {
-      return [];
-    }
-
-    const social = store.settings.social;
-    const links = [
-      {
-        key: "instagram",
-        label: "Instagram",
-        href: toExternalHref(social.instagramUrl),
-        symbol: "IG"
-      },
-      {
-        key: "facebook",
-        label: "Facebook",
-        href: toExternalHref(social.facebookUrl),
-        symbol: "FB"
-      },
-      {
-        key: "tiktok",
-        label: "TikTok",
-        href: toExternalHref(social.tiktokUrl),
-        symbol: "TT"
-      },
-      {
-        key: "youtube",
-        label: "YouTube",
-        href: toExternalHref(social.youtubeUrl),
-        symbol: "YT"
-      },
-      {
-        key: "site",
-        label: "Site",
-        href: toExternalHref(social.siteUrl),
-        symbol: "WEB"
-      }
-    ];
-
-    return links.filter((item): item is SocialLink => Boolean(item.href));
-  }, [store]);
-
-  if (isLoading) {
-    return <StorefrontLoadingSkeleton />;
-  }
-
-  if (!store) {
-    return (
-      <main className="mx-auto grid min-h-[60vh] w-full max-w-3xl place-items-center px-4 py-8">
-        <div className="w-full rounded-2xl border border-zinc-200 bg-white p-6 text-center shadow-card">
-          <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Nao foi possivel carregar a vitrine</p>
-          <p className="mt-2 text-sm text-zinc-700">{message || "Tente atualizar a pagina novamente."}</p>
-        </div>
-      </main>
-    );
-  }
+  const dynamicTheme = useMemo(
+    () =>
+      ({
+        "--store-primary": store?.settings.theme.primaryColor ?? "#1447e6",
+        "--store-accent": store?.settings.theme.accentColor ?? "#1a4eda",
+        "--store-bg": store?.settings.theme.backgroundColor ?? "#ffffff"
+      }) as React.CSSProperties,
+    [store]
+  );
 
   return (
-    <main className="mx-auto w-full max-w-6xl px-2 pb-24 pt-2 sm:px-3 sm:pt-3 md:px-6 md:pb-8" style={themeStyle}>
-      <header className="soft-panel mb-3 rounded-2xl border border-white/40 p-3 shadow-md md:sticky md:top-3 md:z-30 md:mb-4 md:p-4 md:backdrop-blur">
-        <div className="flex flex-wrap items-start gap-3 sm:items-center">
-          {store?.logoUrl ? (
-            <Image
-              src={store.logoUrl}
-              alt={store.name}
-              width={52}
-              height={52}
-              className="h-12 w-12 rounded-full object-cover ring-2 ring-white sm:h-14 sm:w-14"
-            />
-          ) : (
-            <div className="grid h-12 w-12 place-items-center rounded-full bg-[var(--store-primary)] text-base font-bold text-white sm:h-14 sm:w-14 sm:text-lg">
-              {store?.name?.slice(0, 2).toUpperCase() || "LG"}
-            </div>
-          )}
+    <div className="min-h-screen bg-zinc-50/50 pb-28 sm:pb-16 text-zinc-900" style={dynamicTheme}>
+      {/* 1. Enhanced Store Header */}
+      <StoreHeader
+        store={store}
+        search={search}
+        onSearchChange={setSearch}
+        canViewAdminLink={canViewAdminLink}
+      />
 
-          <div className="min-w-0 flex-1">
-            <h1 className="truncate font-[var(--font-heading)] text-lg font-bold sm:text-xl md:text-2xl">{store?.name ?? "Carregando loja..."}</h1>
-            <p className="truncate text-xs text-zinc-600 sm:text-sm">{store?.address ?? "Retirada no local"}</p>
+      {/* 2. Responsive Category Navigation Bar */}
+      <CategoryNav
+        categories={categories}
+        activeCategory={activeCategory}
+        onSelectCategory={setActiveCategory}
+        totalProductsCount={products.length}
+        categoryCounts={categoryCounts}
+      />
+
+      {/* 3. Main Catalog Grid */}
+      <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+        {/* Desktop Cart Trigger & Summary Banner */}
+        <div className="hidden sm:flex items-center justify-between rounded-2xl border border-zinc-200/80 bg-white px-5 py-3.5 shadow-xs mb-6">
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-bold uppercase tracking-wider text-zinc-400">Catálogo</span>
+            <span className="text-xs text-zinc-400">•</span>
+            <span className="text-xs font-bold text-zinc-700">
+              {visibleProducts.length} {visibleProducts.length === 1 ? "produto disponível" : "produtos disponíveis"}
+            </span>
           </div>
 
-          {canViewAdminLink ? (
-            <a href="/admin" className="w-full rounded-full border border-zinc-300 bg-white px-3 py-2 text-center text-xs font-semibold sm:ml-auto sm:w-auto">
-              Admin
-            </a>
-          ) : null}
-        </div>
-
-        <input
-          className="mt-3 w-full rounded-xl border border-zinc-300 bg-white px-3 py-2.5 text-sm"
-          placeholder="Buscar produto por nome"
-          value={search}
-          onChange={(event) => setSearch(event.target.value)}
-        />
-
-        {socialLinks.length > 0 ? (
-          <div className="mt-3 flex flex-wrap items-center gap-2">
-            <span className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Redes</span>
-            {socialLinks.map((item) => (
-              <a
-                key={item.key}
-                href={item.href}
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex items-center gap-1.5 rounded-full border border-zinc-300 bg-white px-3 py-1 text-xs font-semibold text-zinc-700 transition hover:border-[var(--store-primary)] hover:text-[var(--store-primary)]"
-              >
-                <span className="rounded bg-zinc-100 px-1.5 py-0.5 text-[10px] font-bold leading-none">{item.symbol}</span>
-                {item.label}
-              </a>
-            ))}
-          </div>
-        ) : null}
-      </header>
-
-      <section className="mb-3 space-y-2 md:mb-4">
-        <div className="md:hidden">
           <button
             type="button"
-            onClick={() => setShowMobileCategories((prev) => !prev)}
-            className="w-full rounded-xl border border-zinc-300 bg-white px-3 py-2.5 text-left text-sm font-semibold text-zinc-800"
+            onClick={() => setCartOpen(true)}
+            style={{
+              backgroundColor: "var(--store-primary, #18181b)"
+            }}
+            className="flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold text-white shadow-sm transition hover:brightness-110 active:scale-95"
           >
-            Categorias: {activeCategoryLabel} ({activeCategoryCount})
+            <ShoppingBag className="h-4 w-4" />
+            <span>Ver Sacola</span>
+            {cartItems.length > 0 && (
+              <span className="rounded-full bg-white/20 px-2 py-0.5 text-[10px] font-extrabold text-white">
+                {cartItems.length}
+              </span>
+            )}
           </button>
+        </div>
 
-          {showMobileCategories ? (
-            <div className="mt-2 grid gap-2 rounded-xl border border-zinc-200 bg-white p-2">
+        {/* Products Grid */}
+        {visibleProducts.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-20 text-center">
+            <div className="flex h-16 w-16 items-center justify-center rounded-3xl bg-zinc-100 text-zinc-400 mb-3">
+              <Search className="h-8 w-8 stroke-[1.5]" />
+            </div>
+            <h3 className="text-base font-bold text-zinc-900">Nenhum produto encontrado</h3>
+            <p className="mt-1 text-xs text-zinc-500 max-w-xs">
+              Tente buscar por outro termo ou escolha outra categoria acima.
+            </p>
+            {search && (
               <button
                 type="button"
-                onClick={() => {
-                  setActiveCategory("all");
-                  setShowMobileCategories(false);
-                }}
-                className={`rounded-lg px-3 py-2 text-left text-sm font-semibold ${
-                  activeCategory === "all"
-                    ? "bg-[var(--store-primary)] text-white"
-                    : "border border-zinc-200 bg-white text-zinc-700"
-                }`}
+                onClick={() => setSearch("")}
+                className="mt-4 rounded-xl bg-zinc-100 px-4 py-2 text-xs font-bold text-zinc-700 hover:bg-zinc-200"
               >
-                Todas ({products.length})
+                Limpar busca
               </button>
-
-              {categories.map((category) => (
-                <button
-                  key={category.id}
-                  type="button"
-                  onClick={() => {
-                    setActiveCategory(category.id);
-                    setShowMobileCategories(false);
-                  }}
-                  className={`rounded-lg px-3 py-2 text-left text-sm font-semibold ${
-                    activeCategory === category.id
-                      ? "bg-[var(--store-primary)] text-white"
-                      : "border border-zinc-200 bg-white text-zinc-700"
-                  }`}
-                >
-                  {category.name} ({categoryCounts[category.id] ?? 0})
-                </button>
-              ))}
-            </div>
-          ) : null}
-        </div>
-
-        <div className="hidden flex-wrap gap-2 md:flex">
-          <button
-            type="button"
-            onClick={() => setActiveCategory("all")}
-            className={`rounded-full px-4 py-2 text-sm font-semibold ${
-              activeCategory === "all"
-                ? "bg-[var(--store-primary)] text-white shadow-sm"
-                : "soft-panel border border-zinc-200 text-zinc-700"
-            }`}
-          >
-            Todos ({products.length})
-          </button>
-          {categories.map((category) => (
-            <button
-              type="button"
-              key={category.id}
-              onClick={() => setActiveCategory(category.id)}
-              className={`rounded-full px-4 py-2 text-sm font-semibold ${
-                activeCategory === category.id
-                  ? "bg-[var(--store-primary)] text-white shadow-sm"
-                  : "soft-panel border border-zinc-200 text-zinc-700"
-              }`}
-            >
-              {category.name} ({categoryCounts[category.id] ?? 0})
-            </button>
-          ))}
-        </div>
-      </section>
-
-      <div className="grid w-full min-w-0 gap-3 md:gap-4 lg:grid-cols-[1.4fr_0.6fr]">
-        <section className="w-full min-w-0 space-y-2.5 overflow-x-hidden sm:space-y-3">
-          {visibleProducts.map((product) => {
-            const quantityValue = quantities[product.id] ?? String(getDefaultQuantity(product));
-            const productWhatsUrl = `https://wa.me/${(store?.phone ?? "").replace(/\D/g, "")}?text=${encodeURIComponent(
-              `Ola! Quero pedir ${product.name}.`
-            )}`;
-
-            return (
-              <article key={product.id} className="soft-panel w-full min-w-0 max-w-full overflow-hidden rounded-2xl border border-white/40 p-1.5 shadow-sm sm:p-2.5 md:p-3">
-                <div
-                  className={
-                    product.imageUrl
-                      ? "grid w-full min-w-0 grid-cols-[64px_minmax(0,1fr)] items-start gap-1.5 xs:grid-cols-[72px_minmax(0,1fr)] xs:gap-2 sm:grid-cols-[110px_minmax(0,1fr)] sm:gap-3"
-                      : "w-full min-w-0"
-                  }
-                >
-                  {product.imageUrl ? (
-                    <Image
-                      src={product.imageUrl}
-                      alt={product.name}
-                      width={480}
-                      height={320}
-                      className="h-[64px] w-full rounded-lg object-cover xs:h-[72px] sm:h-full"
-                    />
-                  ) : null}
-
-                  <div className="min-w-0">
-                    <div className="flex flex-col gap-0.5 xs:gap-1 sm:flex-row sm:items-start sm:justify-between sm:gap-2">
-                      <h2 className="min-w-0 break-words font-[var(--font-heading)] text-[13px] leading-tight xs:text-[15px] sm:flex-1 sm:text-lg font-semibold">
-                        {product.name}
-                      </h2>
-                      <p className="text-xs font-bold leading-tight xs:text-sm sm:shrink-0 sm:whitespace-nowrap">{formatBRL(product.price)}</p>
-                    </div>
-
-                    <p className="break-words text-[11px] text-zinc-600 xs:text-xs sm:text-sm">{product.description || "Produto sem descricao"}</p>
-                    <p className="mt-0.5 text-[11px] text-zinc-500 xs:text-xs">{getUnitBadge(product)}</p>
-                    <p className="text-[11px] text-zinc-500 xs:text-xs">Minimo: {formatMinimumLabel(product)}</p>
-
-                    <div className="mt-1.5 grid w-full min-w-0 gap-1 xs:gap-1.5 sm:flex sm:flex-wrap sm:items-center">
-                      <input
-                        className="w-full min-w-0 rounded-lg border border-zinc-300 bg-white px-1.5 py-0.5 text-xs xs:px-2 xs:py-1 sm:w-24 sm:text-sm"
-                        type="number"
-                        step={product.unitType === "KG" ? "0.05" : "1"}
-                        min={product.minQuantity}
-                        value={quantityValue}
-                        onChange={(event) =>
-                          setQuantities((prev) => ({
-                            ...prev,
-                            [product.id]: event.target.value
-                          }))
-                        }
-                      />
-
-                      <button
-                        type="button"
-                        onClick={() => addToCart(product)}
-                        className="w-full min-w-0 rounded-lg bg-[var(--store-primary)] px-2 py-1 text-xs font-semibold text-white shadow-sm xs:px-2.5 xs:py-1.5 sm:w-auto sm:px-3 sm:py-2 sm:text-sm"
-                      >
-                        Adicionar
-                      </button>
-
-                      <a
-                        href={productWhatsUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="w-full min-w-0 rounded-lg border border-[var(--store-accent)] px-2 py-1 text-center text-xs font-semibold text-[var(--store-accent)] xs:px-2.5 xs:py-1.5 sm:w-auto sm:px-3 sm:py-2 sm:text-sm"
-                      >
-                        Pedir Zap
-                      </a>
-                    </div>
-                  </div>
-                </div>
-              </article>
-            );
-          })}
-
-          {visibleProducts.length === 0 ? (
-            <p className="rounded-xl border border-zinc-200 bg-white p-4 text-sm text-zinc-600">Nenhum produto encontrado.</p>
-          ) : null}
-        </section>
-
-        <aside className="hidden lg:block lg:sticky lg:top-4">
-          <CartPanel
-            cart={cartItems}
-            total={cartTotal}
-            checkout={checkout}
-            acceptedPayments={acceptedPayments}
-            checkingOut={checkingOut}
-            storePhone={store?.phone ?? ""}
-            message={message}
-            onCheckoutChange={setCheckout}
-            onRemove={(productId) => removeItem(slug, productId)}
-            onCheckout={() => void handleCheckout()}
-          />
-        </aside>
-      </div>
-
-      <button
-        type="button"
-        onClick={() => setCartOpen(true)}
-        className="fixed bottom-[calc(0.5rem+env(safe-area-inset-bottom))] left-2 right-2 z-40 flex items-center justify-between rounded-2xl bg-[var(--store-primary)] px-3 py-2.5 text-sm font-bold text-white shadow-md sm:left-3 sm:right-3 sm:px-4 sm:py-3 lg:hidden"
-      >
-        <span>Ver carrinho</span>
-        <span className="min-w-0 truncate text-xs font-semibold sm:text-sm">
-          {cartItems.length} itens • {formatBRL(cartTotal)}
-        </span>
-      </button>
-
-      {cartOpen ? (
-        <div className="fixed inset-0 z-50 grid place-items-end bg-black/40 p-0 lg:hidden">
-          <div className="max-h-[92vh] w-full overflow-y-auto rounded-t-3xl bg-[var(--store-bg)] px-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] pt-3">
-            <CartPanel
-              cart={cartItems}
-              total={cartTotal}
-              checkout={checkout}
-              acceptedPayments={acceptedPayments}
-              checkingOut={checkingOut}
-            storePhone={store?.phone ?? ""}
-            message={message}
-              onCheckoutChange={setCheckout}
-              onRemove={(productId) => removeItem(slug, productId)}
-              onCheckout={() => void handleCheckout()}
-              onClose={() => setCartOpen(false)}
-            />
+            )}
           </div>
-        </div>
-      ) : null}
-
-      {showLeadModal ? (
-        <div className="fixed inset-0 z-50 grid place-items-center bg-black/45 p-4">
-          <div className="w-full max-w-md rounded-2xl bg-white p-5 shadow-card">
-            <h3 className="font-[var(--font-heading)] text-xl font-bold">Receba novidades no WhatsApp</h3>
-            <p className="mt-1 text-sm text-zinc-600">Deixe nome e telefone para ofertas e reposicoes de estoque.</p>
-
-            <form onSubmit={(event) => void submitLead(event)} className="mt-4 space-y-3">
-              <input
-                className="w-full rounded-lg border border-zinc-300 px-3 py-2"
-                placeholder="Seu nome"
-                value={lead.name}
-                onChange={(event) => setLead((prev) => ({ ...prev, name: event.target.value }))}
-                required
+        ) : (
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 sm:gap-4 lg:gap-4.5">
+            {visibleProducts.map((product) => (
+              <ProductCard
+                key={product.id}
+                product={product}
+                quantity={quantities[product.id] ?? ""}
+                onQuantityChange={handleQuantityChange}
+                onAddToCart={handleAddToCart}
+                isAddedJustNow={lastAddedId === product.id}
               />
-              <input
-                className="w-full rounded-lg border border-zinc-300 px-3 py-2"
-                placeholder="WhatsApp"
-                value={lead.phone}
-                onChange={(event) => setLead((prev) => ({ ...prev, phone: event.target.value }))}
-                required
-              />
-
-              <div className="flex gap-2">
-                <button type="submit" className="rounded-xl bg-[var(--store-primary)] px-4 py-2 text-sm font-semibold text-white">
-                  Quero receber
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowLeadModal(false);
-                    localStorage.setItem(leadStorageKey, "skip");
-                  }}
-                  className="rounded-xl border border-zinc-300 px-4 py-2 text-sm"
-                >
-                  Agora nao
-                </button>
-              </div>
-            </form>
+            ))}
           </div>
-        </div>
-      ) : null}
-    </main>
-  );
-}
+        )}
+      </main>
 
-function StorefrontLoadingSkeleton() {
-  return (
-    <main className="mx-auto w-full max-w-6xl animate-pulse px-3 pb-24 pt-3 md:px-6 md:pb-8">
-      <header className="mb-4 rounded-2xl border border-zinc-200 bg-white p-4 shadow-md">
-        <div className="flex items-center gap-3">
-          <div className="h-14 w-14 rounded-full bg-zinc-200" />
-          <div className="flex-1 space-y-2">
-            <div className="h-5 w-48 rounded bg-zinc-200" />
-            <div className="h-4 w-64 rounded bg-zinc-100" />
-          </div>
-        </div>
-        <div className="mt-4 h-11 rounded-xl bg-zinc-100" />
-      </header>
+      {/* 4. Fixed Floating WhatsApp CTA Button */}
+      <WhatsAppFloatingButton phone={store.phone} storeName={store.name} />
 
-      <div className="mb-4 flex gap-2 overflow-hidden">
-        <div className="h-9 w-20 rounded-full bg-zinc-200" />
-        <div className="h-9 w-24 rounded-full bg-zinc-100" />
-        <div className="h-9 w-24 rounded-full bg-zinc-100" />
-        <div className="h-9 w-28 rounded-full bg-zinc-100" />
-      </div>
+      {/* 5. Mobile Floating Cart Bar */}
+      <FloatingCartBar cartItems={cartItems} onOpenCart={() => setCartOpen(true)} />
 
-      <section className="grid gap-3">
-        <div className="rounded-2xl border border-zinc-200 bg-white p-3">
-          <div className="grid gap-3 sm:grid-cols-[120px_1fr]">
-            <div className="h-28 rounded-xl bg-zinc-100" />
-            <div className="space-y-2">
-              <div className="h-5 w-56 rounded bg-zinc-200" />
-              <div className="h-4 w-44 rounded bg-zinc-100" />
-              <div className="h-4 w-32 rounded bg-zinc-100" />
-              <div className="mt-3 h-9 w-48 rounded-lg bg-zinc-100" />
-            </div>
-          </div>
-        </div>
+      {/* 6. Cart & Checkout Drawer */}
+      <CartDrawer
+        slug={slug}
+        isOpen={cartOpen}
+        onClose={() => setCartOpen(false)}
+        store={store}
+        cartItems={cartItems}
+        onAddItem={(item) => addItem(slug, item)}
+        onRemoveItem={(productId) => removeItem(slug, productId)}
+        onClearCart={() => clearStore(slug)}
+        checkout={checkout}
+        onCheckoutChange={setCheckout}
+      />
 
-        <div className="rounded-2xl border border-zinc-200 bg-white p-3">
-          <div className="grid gap-3 sm:grid-cols-[120px_1fr]">
-            <div className="h-28 rounded-xl bg-zinc-100" />
-            <div className="space-y-2">
-              <div className="h-5 w-48 rounded bg-zinc-200" />
-              <div className="h-4 w-52 rounded bg-zinc-100" />
-              <div className="h-4 w-28 rounded bg-zinc-100" />
-              <div className="mt-3 h-9 w-44 rounded-lg bg-zinc-100" />
-            </div>
-          </div>
-        </div>
-      </section>
-    </main>
-  );
-}
-
-type CartPanelProps = {
-  cart: CartItem[];
-  total: number;
-  checkout: CheckoutPayload;
-  acceptedPayments: PaymentMethod[];
-  checkingOut: boolean;
-  storePhone: string;
-  message: string | null;
-  onCheckoutChange: (payload: CheckoutPayload) => void;
-  onRemove: (productId: string) => void;
-  onCheckout: () => void;
-  onClose?: () => void;
-};
-
-function CartPanel({
-  cart,
-  total,
-  checkout,
-  acceptedPayments,
-  checkingOut,
-  storePhone,
-  message,
-  onCheckoutChange,
-  onRemove,
-  onCheckout,
-  onClose
-}: CartPanelProps) {
-  return (
-    <aside className="soft-panel rounded-2xl border border-white/40 p-3 shadow-md sm:p-4">
-      <div className="flex flex-wrap items-center gap-2">
-        <h3 className="font-[var(--font-heading)] text-xl font-bold">Carrinho</h3>
-        <span className="rounded-full bg-zinc-100 px-2 py-1 text-xs font-semibold text-zinc-600">{cart.length} itens</span>
-        {onClose ? (
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Fechar carrinho"
-            title="Fechar"
-            className="ml-auto inline-flex h-8 w-8 items-center justify-center rounded-full border border-zinc-300 text-sm font-bold leading-none"
-          >
-            X
-          </button>
-        ) : null}
-      </div>
-
-      <div className="mt-3 space-y-2">
-        {cart.length === 0 ? <p className="text-sm text-zinc-600">Carrinho vazio.</p> : null}
-        {cart.map((item) => {
-          const itemWhatsUrl = `https://wa.me/${storePhone.replace(/\D/g, "")}?text=${encodeURIComponent(`Ola! Quero pedir ${item.productName}.`)}`;
-          return (
-            <div key={item.productId} className="rounded-xl border border-zinc-200 bg-white p-2">
-              <div className="flex items-start justify-between gap-2">
-                <div className="min-w-0 flex-1">
-                  <p className="break-words font-medium">{item.productName}</p>
-                  <p className="text-xs text-zinc-600">
-                    {item.quantity} {item.unitType === "KG" ? "kg" : "un"} | {formatBRL(item.subtotal)}
-                  </p>
-                </div>
-                <div className="flex gap-1">
-                  <a
-                    href={itemWhatsUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-xs font-semibold text-green-600 underline"
-                    title="Pedir este item via WhatsApp"
-                  >
-                    Zap
-                  </a>
-                  <button type="button" onClick={() => onRemove(item.productId)} className="text-xs text-red-700 underline">
-                    X
-                  </button>
-                </div>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-
-      <p className="mt-3 text-base font-bold">Total: {formatBRL(total)}</p>
-
-      <div className="mt-4 space-y-2 text-sm">
-        <input
-          className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2"
-          placeholder="Seu nome"
-          value={checkout.customerName}
-          onChange={(event) => onCheckoutChange({ ...checkout, customerName: event.target.value })}
-        />
-
-        <input
-          className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2"
-          placeholder="Seu WhatsApp"
-          value={checkout.customerPhone}
-          onChange={(event) => onCheckoutChange({ ...checkout, customerPhone: event.target.value })}
-        />
-
-        <select
-          className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2"
-          value={checkout.fulfillmentType}
-          onChange={(event) =>
-            onCheckoutChange({
-              ...checkout,
-              fulfillmentType: event.target.value as "ENTREGA" | "RETIRADA"
-            })
-          }
-        >
-          <option value="RETIRADA">Retirada</option>
-          <option value="ENTREGA">Entrega</option>
-        </select>
-
-        {checkout.fulfillmentType === "ENTREGA" ? (
-          <input
-            className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2"
-            placeholder="Endereco completo"
-            value={checkout.address}
-            onChange={(event) => onCheckoutChange({ ...checkout, address: event.target.value })}
-          />
-        ) : null}
-
-        <select
-          className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2"
-          value={checkout.paymentMethod}
-          onChange={(event) =>
-            onCheckoutChange({
-              ...checkout,
-              paymentMethod: event.target.value as PaymentMethod
-            })
-          }
-        >
-          {acceptedPayments.map((method) => (
-            <option key={method} value={method}>
-              {paymentLabel[method]}
-            </option>
-          ))}
-        </select>
-
-        {checkout.paymentMethod === "DINHEIRO" ? (
-          <input
-            className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2"
-            placeholder="Troco para quanto?"
-            value={checkout.changeFor}
-            onChange={(event) => onCheckoutChange({ ...checkout, changeFor: event.target.value })}
-          />
-        ) : null}
-
-        <textarea
-          className="min-h-20 w-full rounded-lg border border-zinc-300 bg-white px-3 py-2"
-          placeholder="Observacoes"
-          value={checkout.notes}
-          onChange={(event) => onCheckoutChange({ ...checkout, notes: event.target.value })}
-        />
-      </div>
-
-      <button
-        type="button"
-        onClick={onCheckout}
-        disabled={checkingOut}
-        className="mt-4 w-full rounded-xl bg-[var(--store-primary)] px-4 py-3 text-sm font-bold text-white disabled:opacity-70"
-      >
-        {checkingOut ? "Gerando pedido..." : "Finalizar no WhatsApp"}
-      </button>
-
-      {message ? <p className="mt-3 text-xs text-zinc-700">{message}</p> : null}
-    </aside>
+      {/* 7. Lead Capture Modal */}
+      <LeadModal
+        slug={slug}
+        isOpen={showLeadModal}
+        onClose={() => setShowLeadModal(false)}
+        onLeadCaptured={handleLeadCaptured}
+      />
+    </div>
   );
 }

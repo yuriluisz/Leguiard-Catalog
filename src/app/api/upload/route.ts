@@ -30,7 +30,10 @@ export async function POST(request: Request) {
       return NextResponse.json({ message: "Imagem deve ter no maximo 5MB" }, { status: 400 });
     }
 
-    const extension = file.name.includes(".") ? file.name.split(".").pop() : "jpg";
+    const ALLOWED_EXTENSIONS = new Set(["jpg", "jpeg", "png", "webp", "gif", "svg"]);
+    const rawExtension = (file.name.includes(".") ? file.name.split(".").pop() : "jpg")?.toLowerCase() || "jpg";
+    const extension = ALLOWED_EXTENSIONS.has(rawExtension) ? rawExtension : "jpg";
+
     const filename = `${Date.now()}-${randomUUID()}.${extension}`;
 
     const uploadDir = path.join(process.cwd(), "public", "uploads");

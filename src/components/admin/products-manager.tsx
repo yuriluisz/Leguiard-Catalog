@@ -2,9 +2,26 @@
 
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
+import {
+  Boxes,
+  Plus,
+  Search,
+  Upload,
+  Edit2,
+  Trash2,
+  Check,
+  AlertCircle,
+  Eye,
+  EyeOff,
+  PackageCheck,
+  PackageX,
+  X,
+  Package
+} from "lucide-react";
 
 import { fetchJson } from "@/lib/http";
 import { formatBRL } from "@/lib/format";
+import { getUnitBadge } from "@/lib/pricing";
 
 type Category = {
   id: string;
@@ -55,22 +72,28 @@ const emptyForm: ProductForm = {
 export function ProductsManager() {
   const formTopRef = useRef<HTMLDivElement | null>(null);
   const nameInputRef = useRef<HTMLInputElement | null>(null);
+
   const [categories, setCategories] = useState<Category[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [search, setSearch] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState("all");
   const [form, setForm] = useState<ProductForm>(emptyForm);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [message, setMessage] = useState<string | null>(null);
+  const [isFormOpen, setIsFormOpen] = useState(false);
+  const [message, setMessage] = useState<{ text: string; type: "success" | "error" } | null>(null);
   const [saving, setSaving] = useState(false);
 
   const filteredProducts = useMemo(() => {
     const normalized = search.trim().toLowerCase();
-    if (!normalized) {
-      return products;
-    }
-
-    return products.filter((product) => product.name.toLowerCase().includes(normalized));
-  }, [products, search]);
+    return products.filter((product) => {
+      const matchesSearch =
+        !normalized ||
+        product.name.toLowerCase().includes(normalized) ||
+        (product.description && product.description.toLowerCase().includes(normalized));
+      const matchesCat = selectedCategory === "all" || product.categoryId === selectedCategory;
+      return matchesSearch && matchesCat;
+    });
+  }, [products, search, selectedCategory]);
 
   async function loadData() {
     const [categoriesData, productsData] = await Promise.all([
@@ -88,12 +111,14 @@ export function ProductsManager() {
   }
 
   useEffect(() => {
-    void loadData().catch((error: Error) => setMessage(error.message));
+    void loadData().catch((error: Error) =>
+      setMessage({ text: error.message, type: "error" })
+    );
   }, []);
 
   async function uploadImage(file: File) {
     if (file.size > 5 * 1024 * 1024) {
-      throw new Error("A imagem deve ter no maximo 5MB");
+      throw new Error("A imagem deve ter no máximo 5MB");
     }
 
     const data = new FormData();
@@ -105,21 +130,14 @@ export function ProductsManager() {
     });
 
     if (!response.ok) {
-      let message = "Falha no upload da imagem";
-
+      let uploadMessage = "Falha ao subir imagem";
       try {
-        const body = (await response.json()) as { message?: string; error?: string };
-        if (body.message) {
-          message = body.message;
-        }
-        if (body.error) {
-          message = `${message}: ${body.error}`;
-        }
+        const body = (await response.json()) as { message?: string };
+        if (body.message) uploadMessage = body.message;
       } catch {
         // noop
       }
-
-      throw new Error(message);
+      throw new Error(uploadMessage);
     }
 
     const body = (await response.json()) as { url: string };
@@ -128,14 +146,14 @@ export function ProductsManager() {
     if (editingId) {
       await fetchJson(`/api/products/${editingId}`, {
         method: "PATCH",
-        body: JSON.stringify({ imageUrl: body.url })
+        json: { imageUrl: body.url }
       });
       await loadData();
-      setMessage("Imagem enviada e salva no produto.");
+      setMessage({ text: "Imagem enviada e salva no produto!", type: "success" });
       return;
     }
 
-    setMessage("Imagem enviada. Clique em Criar Produto para salvar o cadastro com essa imagem.");
+    setMessage({ text: "Imagem enviada. Salve o produto para confirmar.", type: "success" });
   }
 
   function toPayload(currentForm: ProductForm) {
@@ -162,12 +180,12 @@ export function ProductsManager() {
       if (editingId) {
         await fetchJson(`/api/products/${editingId}`, {
           method: "PATCH",
-          body: JSON.stringify(toPayload(form))
+          json: toPayload(form)
         });
       } else {
         await fetchJson("/api/products", {
           method: "POST",
-          body: JSON.stringify(toPayload(form))
+          json: toPayload(form)
         });
       }
 
@@ -176,10 +194,17 @@ export function ProductsManager() {
         categoryId: prev.categoryId || categories[0]?.id || ""
       }));
       setEditingId(null);
+      setIsFormOpen(false);
       await loadData();
-      setMessage(editingId ? "Produto atualizado." : "Produto criado.");
+      setMessage({
+        text: editingId ? "Produto atualizado com sucesso!" : "Produto criado com sucesso!",
+        type: "success"
+      });
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Falha ao salvar produto");
+      setMessage({
+        text: error instanceof Error ? error.message : "Falha ao salvar produto",
+        type: "error"
+      });
     } finally {
       setSaving(false);
     }
@@ -199,6 +224,7 @@ export function ProductsManager() {
       isActive: product.isActive,
       isOutOfStock: product.isOutOfStock
     });
+    setIsFormOpen(true);
 
     requestAnimationFrame(() => {
       formTopRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -207,264 +233,425 @@ export function ProductsManager() {
   }
 
   async function onDelete(id: string) {
-    if (!confirm("Deseja remover este produto?")) {
-      return;
-    }
+    if (!confirm("Deseja realmente remover este produto?")) return;
 
-    await fetchJson(`/api/products/${id}`, { method: "DELETE" });
-    await loadData();
+    try {
+      await fetchJson(`/api/products/${id}`, { method: "DELETE" });
+      await loadData();
+      setMessage({ text: "Produto removido.", type: "success" });
+    } catch (err) {
+      setMessage({
+        text: err instanceof Error ? err.message : "Falha ao excluir produto",
+        type: "error"
+      });
+    }
   }
 
   async function patchQuick(id: string, data: Record<string, unknown>) {
-    await fetchJson(`/api/products/${id}`, {
-      method: "PATCH",
-      body: JSON.stringify(data)
-    });
-
-    await loadData();
+    try {
+      await fetchJson(`/api/products/${id}`, {
+        method: "PATCH",
+        json: data
+      });
+      await loadData();
+    } catch (err) {
+      setMessage({
+        text: err instanceof Error ? err.message : "Falha na atualização rápida",
+        type: "error"
+      });
+    }
   }
 
   return (
-    <section className="space-y-4 rounded-2xl border border-zinc-200 bg-white p-5 shadow-card">
-      <h2 className="font-[var(--font-heading)] text-xl font-semibold">Gestao de Produtos</h2>
-
+    <div className="w-full space-y-6">
       <div ref={formTopRef} />
 
-      <form onSubmit={onSubmit} className="grid gap-3 lg:grid-cols-2">
-        <label className="text-sm font-medium">
-          Categoria
-          <select
-            className="mt-1 w-full rounded-xl border border-zinc-300 px-3 py-2"
-            value={form.categoryId}
-            onChange={(event) => setForm((prev) => ({ ...prev, categoryId: event.target.value }))}
-            required
-          >
-            <option value="">Selecione</option>
-            {categories.map((category) => (
-              <option key={category.id} value={category.id}>
-                {category.name}
-              </option>
-            ))}
-          </select>
-        </label>
+      {/* Action Header & Quick Add Button */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h2 className="text-base font-extrabold text-zinc-900">Catálogo de Produtos</h2>
+          <p className="text-xs text-zinc-500">
+            {products.length} {products.length === 1 ? "produto cadastrado" : "produtos cadastrados"}
+          </p>
+        </div>
 
-        <label className="text-sm font-medium">
-          Nome
-          <input
-            ref={nameInputRef}
-            className="mt-1 w-full rounded-xl border border-zinc-300 px-3 py-2"
-            value={form.name}
-            onChange={(event) => setForm((prev) => ({ ...prev, name: event.target.value }))}
-            required
-          />
-        </label>
-
-        <label className="text-sm font-medium lg:col-span-2">
-          Descricao
-          <input
-            className="mt-1 w-full rounded-xl border border-zinc-300 px-3 py-2"
-            value={form.description}
-            onChange={(event) => setForm((prev) => ({ ...prev, description: event.target.value }))}
-          />
-        </label>
-
-        <label className="text-sm font-medium">
-          Preco
-          <input
-            type="number"
-            step="0.01"
-            min="0"
-            className="mt-1 w-full rounded-xl border border-zinc-300 px-3 py-2"
-            value={form.price}
-            onChange={(event) => setForm((prev) => ({ ...prev, price: event.target.value }))}
-            required
-          />
-        </label>
-
-        <label className="text-sm font-medium">
-          Unidade
-          <select
-            className="mt-1 w-full rounded-xl border border-zinc-300 px-3 py-2"
-            value={form.unitType}
-            onChange={(event) =>
+        <button
+          type="button"
+          onClick={() => {
+            if (isFormOpen && !editingId) {
+              setIsFormOpen(false);
+            } else {
+              setEditingId(null);
               setForm((prev) => ({
-                ...prev,
-                unitType: event.target.value as "UN" | "KG",
-                displayFraction:
-                  event.target.value === "KG"
-                    ? prev.displayFraction || "100"
-                    : prev.displayFraction,
-                minQuantity:
-                  event.target.value === "KG" && (prev.minQuantity === "" || Number(prev.minQuantity) === 1)
-                    ? "0.1"
-                    : event.target.value === "UN" && Number(prev.minQuantity) < 1
-                      ? "1"
-                      : prev.minQuantity
-              }))
+                ...emptyForm,
+                categoryId: prev.categoryId || categories[0]?.id || ""
+              }));
+              setIsFormOpen(true);
             }
-          >
-            <option value="UN">UN</option>
-            <option value="KG">KG</option>
-          </select>
-        </label>
+          }}
+          className="inline-flex items-center justify-center gap-2 rounded-2xl bg-zinc-900 px-4 py-2.5 text-xs font-bold text-white shadow-sm transition hover:bg-zinc-800 active:scale-95 shrink-0"
+        >
+          {isFormOpen ? <X className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
+          <span>{isFormOpen ? "Fechar Formulário" : "Novo Produto"}</span>
+        </button>
+      </div>
 
-        {form.unitType === "KG" ? (
-          <label className="text-sm font-medium">
-            Fracao exibida (g)
-            <input
-              type="number"
-              min="1"
-              className="mt-1 w-full rounded-xl border border-zinc-300 px-3 py-2"
-              value={form.displayFraction}
-              onChange={(event) => setForm((prev) => ({ ...prev, displayFraction: event.target.value }))}
-            />
-          </label>
-        ) : null}
-
-        <label className="text-sm font-medium">
-          Quantidade minima {form.unitType === "KG" ? "(KG)" : "(UN)"}
-          <input
-            type="number"
-            step="0.001"
-            min="0"
-            className="mt-1 w-full rounded-xl border border-zinc-300 px-3 py-2"
-            value={form.minQuantity}
-            onChange={(event) => setForm((prev) => ({ ...prev, minQuantity: event.target.value }))}
-            required
-          />
-          {form.unitType === "KG" ? <span className="mt-1 block text-xs text-zinc-500">Para 100g, informe 0.1</span> : null}
-        </label>
-
-        <label className="text-sm font-medium lg:col-span-2">
-          URL da imagem
-          <input
-            className="mt-1 w-full rounded-xl border border-zinc-300 px-3 py-2"
-            value={form.imageUrl}
-            onChange={(event) => setForm((prev) => ({ ...prev, imageUrl: event.target.value }))}
-          />
-        </label>
-
-        <div className="lg:col-span-2">
-          <p className="mb-1 text-sm font-medium">Upload de imagem</p>
-          <input
-            type="file"
-            accept="image/*"
-            onChange={(event) => {
-              const file = event.target.files?.[0];
-              if (!file) {
-                return;
-              }
-
-              void uploadImage(file).catch((error: Error) => setMessage(error.message));
-            }}
-          />
+      {/* Status Feedback */}
+      {message && (
+        <div
+          className={`flex items-center gap-2 rounded-2xl p-4 text-xs font-bold border ${
+            message.type === "success"
+              ? "bg-emerald-50 text-emerald-800 border-emerald-200"
+              : "bg-red-50 text-red-800 border-red-200"
+          }`}
+        >
+          {message.type === "success" ? (
+            <Check className="h-4 w-4 shrink-0 text-emerald-600" />
+          ) : (
+            <AlertCircle className="h-4 w-4 shrink-0 text-red-600" />
+          )}
+          <span>{message.text}</span>
         </div>
+      )}
 
-        <div className="flex gap-3 lg:col-span-2">
-          <label className="inline-flex items-center gap-2 text-sm">
-            <input
-              type="checkbox"
-              checked={form.isActive}
-              onChange={(event) => setForm((prev) => ({ ...prev, isActive: event.target.checked }))}
-            />
-            Ativo
-          </label>
-          <label className="inline-flex items-center gap-2 text-sm">
-            <input
-              type="checkbox"
-              checked={form.isOutOfStock}
-              onChange={(event) => setForm((prev) => ({ ...prev, isOutOfStock: event.target.checked }))}
-            />
-            Esgotado
-          </label>
-        </div>
-
-        <div className="flex gap-2 lg:col-span-2">
-          <button type="submit" disabled={saving} className="rounded-xl bg-accent px-4 py-2 text-sm font-semibold text-white">
-            {saving ? "Salvando..." : editingId ? "Atualizar Produto" : "Criar Produto"}
-          </button>
-          {editingId ? (
+      {/* Collapsible Product Form */}
+      {isFormOpen && (
+        <form
+          onSubmit={onSubmit}
+          className="rounded-3xl border border-zinc-200/90 bg-white p-5 sm:p-6 shadow-md space-y-4 animate-slide-up"
+        >
+          <div className="flex items-center justify-between pb-3 border-b border-zinc-100">
+            <h3 className="text-sm font-extrabold text-zinc-900">
+              {editingId ? "Editar Produto" : "Cadastrar Novo Produto"}
+            </h3>
             <button
               type="button"
-              className="rounded-xl border border-zinc-300 px-4 py-2 text-sm"
-              onClick={() => {
-                setEditingId(null);
-                setForm((prev) => ({ ...emptyForm, categoryId: prev.categoryId || categories[0]?.id || "" }));
-              }}
+              onClick={() => setIsFormOpen(false)}
+              className="text-zinc-400 hover:text-zinc-700"
             >
-              Cancelar Edicao
+              <X className="h-4 w-4" />
             </button>
-          ) : null}
-        </div>
-      </form>
+          </div>
 
-      <div className="space-y-2">
-        <input
-          className="w-full rounded-xl border border-zinc-300 px-3 py-2"
-          placeholder="Buscar produto"
-          value={search}
-          onChange={(event) => setSearch(event.target.value)}
-        />
-      </div>
-
-      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-        {filteredProducts.map((product) => (
-          <article key={product.id} className="rounded-xl border border-zinc-200 p-3">
-            <div className="mb-2 flex items-start justify-between gap-3">
-              <div>
-                <h3 className="font-semibold">{product.name}</h3>
-                <p className="text-xs text-zinc-500">{product.category?.name}</p>
-              </div>
-              <p className="text-sm font-semibold">{formatBRL(product.price)}</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div>
+              <label className="block text-xs font-bold text-zinc-700 mb-1">Categoria *</label>
+              <select
+                required
+                value={form.categoryId}
+                onChange={(e) => setForm((prev) => ({ ...prev, categoryId: e.target.value }))}
+                className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-xs font-semibold focus:border-blue-600 focus:outline-none"
+              >
+                <option value="">Selecione a categoria</option>
+                {categories.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
             </div>
 
-            {product.imageUrl ? (
-              <Image
-                src={product.imageUrl}
-                alt={product.name}
-                width={480}
-                height={224}
-                unoptimized
-                className="mb-2 h-28 w-full rounded-lg object-cover"
+            <div>
+              <label className="block text-xs font-bold text-zinc-700 mb-1">Nome do Produto *</label>
+              <input
+                ref={nameInputRef}
+                required
+                value={form.name}
+                onChange={(e) => setForm((prev) => ({ ...prev, name: e.target.value }))}
+                placeholder="Ex: Queijo Minas Artesanal"
+                className="w-full rounded-xl border border-zinc-200 px-3 py-2 text-xs focus:border-blue-600 focus:outline-none"
               />
-            ) : null}
-
-            <p className="text-xs text-zinc-600">{product.description || "Sem descricao"}</p>
-            <p className="mt-1 text-xs text-zinc-600">
-              {product.unitType} | Min
-              {product.unitType === "KG" && product.minQuantity < 1
-                ? ` ${Math.round(product.minQuantity * 1000)}g`
-                : ` ${product.minQuantity}${product.unitType === "KG" ? "kg" : ""}`}
-              {product.unitType === "KG" && product.displayFraction ? ` | ${product.displayFraction}g` : ""}
-            </p>
-
-            <div className="mt-3 flex flex-wrap gap-2">
-              <button type="button" className="rounded-lg border border-zinc-300 px-3 py-1 text-xs" onClick={() => onEdit(product)}>
-                Editar
-              </button>
-              <button
-                type="button"
-                className="rounded-lg border border-zinc-300 px-3 py-1 text-xs"
-                onClick={() => void patchQuick(product.id, { isActive: !product.isActive })}
-              >
-                {product.isActive ? "Desativar" : "Ativar"}
-              </button>
-              <button
-                type="button"
-                className="rounded-lg border border-zinc-300 px-3 py-1 text-xs"
-                onClick={() => void patchQuick(product.id, { isOutOfStock: !product.isOutOfStock })}
-              >
-                {product.isOutOfStock ? "Voltar Estoque" : "Marcar Esgotado"}
-              </button>
-              <button type="button" className="rounded-lg border border-red-200 px-3 py-1 text-xs text-red-700" onClick={() => void onDelete(product.id)}>
-                Excluir
-              </button>
             </div>
-          </article>
-        ))}
+
+            <div>
+              <label className="block text-xs font-bold text-zinc-700 mb-1">Preço (R$) *</label>
+              <input
+                required
+                type="number"
+                step="0.01"
+                min="0"
+                value={form.price}
+                onChange={(e) => setForm((prev) => ({ ...prev, price: e.target.value }))}
+                placeholder="0.00"
+                className="w-full rounded-xl border border-zinc-200 px-3 py-2 text-xs focus:border-blue-600 focus:outline-none"
+              />
+            </div>
+
+            <div className="sm:col-span-2 lg:col-span-3">
+              <label className="block text-xs font-bold text-zinc-700 mb-1">Descrição</label>
+              <input
+                value={form.description}
+                onChange={(e) => setForm((prev) => ({ ...prev, description: e.target.value }))}
+                placeholder="Breve descrição dos ingredientes ou detalhes do produto"
+                className="w-full rounded-xl border border-zinc-200 px-3 py-2 text-xs focus:border-blue-600 focus:outline-none"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-zinc-700 mb-1">Tipo de Unidade *</label>
+              <select
+                value={form.unitType}
+                onChange={(e) => {
+                  const val = e.target.value as "UN" | "KG";
+                  setForm((prev) => ({
+                    ...prev,
+                    unitType: val,
+                    minQuantity: val === "KG" ? "0.25" : "1"
+                  }));
+                }}
+                className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-xs font-semibold focus:border-blue-600 focus:outline-none"
+              >
+                <option value="UN">Unidade (UN)</option>
+                <option value="KG">Quilo / Peso (KG)</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-zinc-700 mb-1">
+                Quantidade Mínima ({form.unitType}) *
+              </label>
+              <input
+                required
+                type="number"
+                step={form.unitType === "KG" ? "0.05" : "1"}
+                min="0.01"
+                value={form.minQuantity}
+                onChange={(e) => setForm((prev) => ({ ...prev, minQuantity: e.target.value }))}
+                className="w-full rounded-xl border border-zinc-200 px-3 py-2 text-xs focus:border-blue-600 focus:outline-none"
+              />
+            </div>
+
+            {form.unitType === "KG" && (
+              <div>
+                <label className="block text-xs font-bold text-zinc-700 mb-1">
+                  Fração Exibida no Badge (g)
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  value={form.displayFraction}
+                  onChange={(e) => setForm((prev) => ({ ...prev, displayFraction: e.target.value }))}
+                  placeholder="Ex: 100 para /100g"
+                  className="w-full rounded-xl border border-zinc-200 px-3 py-2 text-xs focus:border-blue-600 focus:outline-none"
+                />
+              </div>
+            )}
+
+            {/* Image Upload */}
+            <div className="sm:col-span-2 lg:col-span-3">
+              <label className="block text-xs font-bold text-zinc-700 mb-1">Foto do Produto</label>
+              <div className="flex items-center gap-3">
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+                    void uploadImage(file).catch((err: Error) =>
+                      setMessage({ text: err.message, type: "error" })
+                    );
+                  }}
+                  className="text-xs text-zinc-500 file:mr-3 file:py-2 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-zinc-100 file:text-zinc-700 hover:file:bg-zinc-200"
+                />
+                {form.imageUrl && (
+                  <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-xl border border-zinc-200">
+                    <Image src={form.imageUrl} alt="Foto" fill className="object-cover" unoptimized />
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Flags */}
+            <div className="flex items-center gap-6 sm:col-span-2 lg:col-span-3 pt-2">
+              <label className="inline-flex items-center gap-2 text-xs font-bold text-zinc-700 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={form.isActive}
+                  onChange={(e) => setForm((prev) => ({ ...prev, isActive: e.target.checked }))}
+                  className="rounded border-zinc-300 text-blue-600 focus:ring-blue-500"
+                />
+                <span>Produto Ativo no Catálogo</span>
+              </label>
+
+              <label className="inline-flex items-center gap-2 text-xs font-bold text-zinc-700 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={form.isOutOfStock}
+                  onChange={(e) => setForm((prev) => ({ ...prev, isOutOfStock: e.target.checked }))}
+                  className="rounded border-zinc-300 text-red-600 focus:ring-red-500"
+                />
+                <span>Marcar como Esgotado</span>
+              </label>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 pt-3 border-t border-zinc-100">
+            <button
+              type="submit"
+              disabled={saving}
+              className="inline-flex items-center gap-1.5 rounded-xl bg-zinc-900 px-5 py-2.5 text-xs font-bold text-white shadow-sm transition hover:bg-zinc-800 disabled:opacity-50 active:scale-95"
+            >
+              <Check className="h-4 w-4" />
+              <span>{saving ? "Salvando..." : editingId ? "Atualizar Produto" : "Salvar Produto"}</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setIsFormOpen(false);
+                setEditingId(null);
+              }}
+              className="rounded-xl border border-zinc-200 px-4 py-2.5 text-xs font-bold text-zinc-600 hover:bg-zinc-100"
+            >
+              Cancelar
+            </button>
+          </div>
+        </form>
+      )}
+
+      {/* Filter and Search Bar */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="relative flex-1 max-w-md">
+          <Search className="absolute left-3.5 top-2.5 h-4 w-4 text-zinc-400" />
+          <input
+            type="search"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Buscar por nome ou descrição..."
+            className="w-full rounded-xl border border-zinc-200 pl-10 pr-4 py-2 text-xs focus:border-blue-600 focus:outline-none"
+          />
+        </div>
+
+        <select
+          value={selectedCategory}
+          onChange={(e) => setSelectedCategory(e.target.value)}
+          className="rounded-xl border border-zinc-200 bg-white px-3.5 py-2 text-xs font-bold text-zinc-700 focus:border-blue-600 focus:outline-none"
+        >
+          <option value="all">Todas as Categorias ({products.length})</option>
+          {categories.map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.name}
+            </option>
+          ))}
+        </select>
       </div>
 
-      {message ? <p className="text-sm text-zinc-700">{message}</p> : null}
-    </section>
+      {/* Products Grid / Cards */}
+      {filteredProducts.length === 0 ? (
+        <div className="rounded-3xl border border-zinc-200/90 bg-white p-12 text-center">
+          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-zinc-100 text-zinc-400 mx-auto mb-3">
+            <Package className="h-6 w-6" />
+          </div>
+          <p className="text-sm font-bold text-zinc-700">Nenhum produto encontrado</p>
+          <p className="text-xs text-zinc-500 mt-1">
+            Cadastre novos produtos acima para exibir no catálogo.
+          </p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+          {filteredProducts.map((p) => (
+            <div
+              key={p.id}
+              className="flex flex-col justify-between rounded-2xl border border-zinc-200/90 bg-white p-4 shadow-sm transition hover:shadow-md"
+            >
+              <div>
+                <div className="relative aspect-video w-full overflow-hidden rounded-xl bg-zinc-100 mb-3">
+                  {p.imageUrl ? (
+                    <Image src={p.imageUrl} alt={p.name} fill className="object-cover" unoptimized />
+                  ) : (
+                    <div className="flex h-full w-full items-center justify-center text-zinc-300">
+                      <Package className="h-8 w-8 stroke-[1.5]" />
+                    </div>
+                  )}
+
+                  <div className="absolute left-2 top-2">
+                    <span className="rounded-lg bg-black/60 px-2 py-0.5 text-[10px] font-bold text-white backdrop-blur-sm">
+                      {getUnitBadge(p as any)}
+                    </span>
+                  </div>
+
+                  {p.isOutOfStock && (
+                    <div className="absolute inset-0 flex items-center justify-center bg-black/60 backdrop-blur-[1px]">
+                      <span className="rounded-full bg-red-600 px-2.5 py-0.5 text-[10px] font-extrabold text-white">
+                        Esgotado
+                      </span>
+                    </div>
+                  )}
+                </div>
+
+                <div>
+                  <span className="text-[10px] font-extrabold uppercase tracking-wider text-blue-600">
+                    {p.category?.name || "Geral"}
+                  </span>
+                  <h4 className="line-clamp-1 text-sm font-extrabold text-zinc-900 mt-0.5">{p.name}</h4>
+                  {p.description && (
+                    <p className="line-clamp-2 text-xs text-zinc-500 mt-1 leading-relaxed">
+                      {p.description}
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              <div className="mt-4 pt-3 border-t border-zinc-100">
+                <div className="flex items-baseline justify-between mb-3">
+                  <span className="text-base font-extrabold text-zinc-900">
+                    {formatBRL(Number(p.price))}
+                  </span>
+                  <span className="text-[11px] font-medium text-zinc-500">
+                    Mín: {p.minQuantity} {p.unitType === "KG" ? "kg" : "un"}
+                  </span>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => onEdit(p)}
+                    className="flex-1 inline-flex items-center justify-center gap-1 rounded-xl bg-zinc-100 px-2.5 py-1.5 text-xs font-bold text-zinc-700 hover:bg-zinc-200 transition active:scale-95"
+                  >
+                    <Edit2 className="h-3 w-3" />
+                    <span>Editar</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => void patchQuick(p.id, { isOutOfStock: !p.isOutOfStock })}
+                    title={p.isOutOfStock ? "Disponibilizar no estoque" : "Marcar como esgotado"}
+                    className={`inline-flex items-center justify-center rounded-xl p-1.5 text-xs font-bold transition active:scale-95 ${
+                      p.isOutOfStock
+                        ? "bg-amber-50 text-amber-700 border border-amber-200"
+                        : "bg-zinc-100 text-zinc-700 hover:bg-zinc-200"
+                    }`}
+                  >
+                    {p.isOutOfStock ? <PackageCheck className="h-3.5 w-3.5" /> : <PackageX className="h-3.5 w-3.5" />}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => void patchQuick(p.id, { isActive: !p.isActive })}
+                    title={p.isActive ? "Desativar da vitrine" : "Ativar na vitrine"}
+                    className={`inline-flex items-center justify-center rounded-xl p-1.5 text-xs font-bold transition active:scale-95 ${
+                      p.isActive
+                        ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                        : "bg-zinc-100 text-zinc-400 hover:bg-zinc-200"
+                    }`}
+                  >
+                    {p.isActive ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => void onDelete(p.id)}
+                    title="Excluir produto"
+                    className="inline-flex items-center justify-center rounded-xl p-1.5 text-xs font-bold text-red-600 hover:bg-red-50 transition active:scale-95"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
