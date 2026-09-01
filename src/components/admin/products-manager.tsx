@@ -440,8 +440,17 @@ export function ProductsManager() {
                   className="text-xs text-zinc-500 file:mr-3 file:py-2 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-zinc-100 file:text-zinc-700 hover:file:bg-zinc-200"
                 />
                 {form.imageUrl && (
-                  <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-xl border border-zinc-200">
-                    <Image src={form.imageUrl} alt="Foto" fill className="object-cover" unoptimized />
+                  <div className="flex items-center gap-2">
+                    <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-xl border border-zinc-200">
+                      <Image src={form.imageUrl} alt="Foto" fill className="object-cover" unoptimized />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setForm((prev) => ({ ...prev, imageUrl: "" }))}
+                      className="text-[11px] font-bold text-red-600 hover:text-red-700 underline"
+                    >
+                      Remover foto
+                    </button>
                   </div>
                 )}
               </div>

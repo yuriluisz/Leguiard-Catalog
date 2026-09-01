@@ -376,24 +376,41 @@ export function StoreSettingsForm() {
                 </div>
 
                 <div className="flex-1 space-y-1">
-                  <label className="inline-flex cursor-pointer items-center gap-2 rounded-xl bg-white border border-zinc-300 px-3.5 py-2 text-xs font-bold text-zinc-700 shadow-sm transition hover:bg-zinc-100">
-                    <Upload className="h-3.5 w-3.5" />
-                    <span>Selecionar Nova Imagem</span>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      className="hidden"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (!file) return;
-                        setMessage(null);
-                        setSaving(true);
-                        void onUpload(file)
-                          .catch((err: Error) => setMessage({ text: err.message, type: "error" }))
-                          .finally(() => setSaving(false));
-                      }}
-                    />
-                  </label>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <label className="inline-flex cursor-pointer items-center gap-2 rounded-xl bg-white border border-zinc-300 px-3.5 py-2 text-xs font-bold text-zinc-700 shadow-sm transition hover:bg-zinc-100">
+                      <Upload className="h-3.5 w-3.5" />
+                      <span>Selecionar Nova Imagem</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (!file) return;
+                          setMessage(null);
+                          setSaving(true);
+                          void onUpload(file)
+                            .catch((err: Error) => setMessage({ text: err.message, type: "error" }))
+                            .finally(() => setSaving(false));
+                        }}
+                      />
+                    </label>
+
+                    {form.logoUrl && (
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          const nextForm = { ...form, logoUrl: "" };
+                          setForm(nextForm);
+                          await saveStore(nextForm);
+                          setMessage({ text: "Logo removida com sucesso.", type: "success" });
+                        }}
+                        className="inline-flex items-center gap-1 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs font-bold text-red-600 hover:bg-red-100 transition"
+                      >
+                        Remover Logo
+                      </button>
+                    )}
+                  </div>
                   <p className="text-[11px] text-zinc-500">
                     Formatos recomendados: PNG, JPG ou WebP (máx. 5MB).
                   </p>
