@@ -22,6 +22,7 @@ import {
 import { fetchJson } from "@/lib/http";
 import { formatBRL } from "@/lib/format";
 import { getUnitBadge } from "@/lib/pricing";
+import { compressImage } from "@/lib/image-compress";
 
 type Category = {
   id: string;
@@ -121,39 +122,24 @@ export function ProductsManager() {
       throw new Error("A imagem deve ter no máximo 5MB");
     }
 
-    const data = new FormData();
-    data.append("file", file);
+    try {
+      const dataUri = await compressImage(file, 800, 0.85);
+      setForm((prev) => ({ ...prev, imageUrl: dataUri }));
 
-    const response = await fetch("/api/upload", {
-      method: "POST",
-      body: data
-    });
-
-    if (!response.ok) {
-      let uploadMessage = "Falha ao subir imagem";
-      try {
-        const body = (await response.json()) as { message?: string };
-        if (body.message) uploadMessage = body.message;
-      } catch {
-        // noop
+      if (editingId) {
+        await fetchJson(`/api/products/${editingId}`, {
+          method: "PATCH",
+          json: { imageUrl: dataUri }
+        });
+        await loadData();
+        setMessage({ text: "Imagem processada e salva no produto!", type: "success" });
+        return;
       }
-      throw new Error(uploadMessage);
+
+      setMessage({ text: "Imagem processada. Salve o produto para confirmar.", type: "success" });
+    } catch {
+      throw new Error("Falha ao processar a imagem do produto");
     }
-
-    const body = (await response.json()) as { url: string };
-    setForm((prev) => ({ ...prev, imageUrl: body.url }));
-
-    if (editingId) {
-      await fetchJson(`/api/products/${editingId}`, {
-        method: "PATCH",
-        json: { imageUrl: body.url }
-      });
-      await loadData();
-      setMessage({ text: "Imagem enviada e salva no produto!", type: "success" });
-      return;
-    }
-
-    setMessage({ text: "Imagem enviada. Salve o produto para confirmar.", type: "success" });
   }
 
   function toPayload(currentForm: ProductForm) {

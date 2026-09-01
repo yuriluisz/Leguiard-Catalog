@@ -1,7 +1,3 @@
-import { randomUUID } from "node:crypto";
-import { mkdir, writeFile } from "node:fs/promises";
-import path from "node:path";
-
 import { NextResponse } from "next/server";
 
 import { resolveAdminStoreContext } from "@/lib/tenant";
@@ -30,27 +26,18 @@ export async function POST(request: Request) {
       return NextResponse.json({ message: "Imagem deve ter no maximo 5MB" }, { status: 400 });
     }
 
-    const ALLOWED_EXTENSIONS = new Set(["jpg", "jpeg", "png", "webp", "gif", "svg"]);
-    const rawExtension = (file.name.includes(".") ? file.name.split(".").pop() : "jpg")?.toLowerCase() || "jpg";
-    const extension = ALLOWED_EXTENSIONS.has(rawExtension) ? rawExtension : "jpg";
-
-    const filename = `${Date.now()}-${randomUUID()}.${extension}`;
-
-    const uploadDir = path.join(process.cwd(), "public", "uploads");
-    await mkdir(uploadDir, { recursive: true });
-
-    const targetPath = path.join(uploadDir, filename);
-    const content = Buffer.from(await file.arrayBuffer());
-
-    await writeFile(targetPath, content);
+    const buffer = Buffer.from(await file.arrayBuffer());
+    const mimeType = file.type || "image/jpeg";
+    const base64Data = buffer.toString("base64");
+    const dataUri = `data:${mimeType};base64,${base64Data}`;
 
     return NextResponse.json({
-      url: `/uploads/${filename}`
+      url: dataUri
     });
   } catch (error) {
     return NextResponse.json(
       {
-        message: "Falha no upload",
+        message: "Falha no processamento da imagem",
         error: error instanceof Error ? error.message : "Erro desconhecido"
       },
       { status: 400 }

@@ -22,6 +22,7 @@ import {
 
 import { fetchJson } from "@/lib/http";
 import { formatBRL } from "@/lib/format";
+import { compressImage } from "@/lib/image-compress";
 import type { PaymentMethod, StoreRecord } from "@/types";
 
 type StoreForm = {
@@ -181,34 +182,19 @@ export function StoreSettingsForm() {
       throw new Error("A imagem deve ter no máximo 5MB");
     }
 
-    const data = new FormData();
-    data.append("file", file);
+    try {
+      const dataUri = await compressImage(file, 600, 0.85);
+      const nextForm: StoreForm = {
+        ...form,
+        logoUrl: dataUri
+      };
 
-    const response = await fetch("/api/upload", {
-      method: "POST",
-      body: data
-    });
-
-    if (!response.ok) {
-      let uploadMessage = "Falha ao subir imagem";
-      try {
-        const body = (await response.json()) as { message?: string };
-        if (body.message) uploadMessage = body.message;
-      } catch {
-        // noop
-      }
-      throw new Error(uploadMessage);
+      setForm(nextForm);
+      await saveStore(nextForm);
+      setMessage({ text: "Logo enviada e salva com sucesso!", type: "success" });
+    } catch {
+      throw new Error("Falha ao processar e salvar a imagem da logo");
     }
-
-    const body = (await response.json()) as { url: string };
-    const nextForm: StoreForm = {
-      ...form,
-      logoUrl: body.url
-    };
-
-    setForm(nextForm);
-    await saveStore(nextForm);
-    setMessage({ text: "Logo enviada e salva com sucesso!", type: "success" });
   }
 
   function togglePayment(method: PaymentMethod) {
