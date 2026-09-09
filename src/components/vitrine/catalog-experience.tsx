@@ -59,6 +59,7 @@ export function CatalogExperience({
 
   const cartItems = useCartStore((state) => state.itemsByStore[slug] ?? EMPTY_CART);
   const addItem = useCartStore((state) => state.addItem);
+  const updateQuantity = useCartStore((state) => state.updateQuantity);
   const removeItem = useCartStore((state) => state.removeItem);
   const clearStore = useCartStore((state) => state.clearStore);
 
@@ -138,12 +139,17 @@ export function CatalogExperience({
 
   const handleAddToCart = (product: ProductRecord) => {
     const isKG = product.unitType === "KG";
-    const minQty = Number(product.minQuantity) || (isKG ? 0.25 : 1);
+    const minQty = isKG
+      ? Math.max(10, Math.round(Number(product.minQuantity) || 50))
+      : Math.max(1, Math.round(Number(product.minQuantity) || 1));
     const rawQty = quantities[product.id] ?? String(minQty);
-    const quantity = Number(rawQty.replace(",", ".")) || minQty;
+    const parsedQty = Math.round(Number(rawQty.replace(",", ".")));
+    const quantity = parsedQty >= minQty ? parsedQty : minQty;
 
     const unitPrice = Number(product.price);
-    const subtotal = Math.round(unitPrice * quantity * 100) / 100;
+    const subtotal = isKG
+      ? Math.round(((unitPrice / 100) * quantity) * 100) / 100
+      : Math.round(unitPrice * quantity * 100) / 100;
 
     const item: CartItem = {
       productId: product.id,
@@ -284,6 +290,7 @@ export function CatalogExperience({
         store={store}
         cartItems={cartItems}
         onAddItem={(item) => addItem(slug, item)}
+        onUpdateQuantity={(productId, qty) => updateQuantity(slug, productId, qty)}
         onRemoveItem={(productId) => removeItem(slug, productId)}
         onClearCart={() => clearStore(slug)}
         checkout={checkout}

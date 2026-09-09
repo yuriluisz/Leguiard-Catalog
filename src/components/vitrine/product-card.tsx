@@ -23,19 +23,21 @@ export function ProductCard({
   isAddedJustNow
 }: ProductCardProps) {
   const isKG = product.unitType === "KG";
-  const step = isKG ? (product.displayFraction ? 1 / product.displayFraction : 0.5) : 1;
-  const minQty = Number(product.minQuantity) || (isKG ? 0.25 : 1);
+  const step = isKG ? 50 : 1;
+  const minQty = isKG
+    ? Math.max(10, Math.round(Number(product.minQuantity) || 50))
+    : Math.max(1, Math.round(Number(product.minQuantity) || 1));
 
   const currentNumericQty = Number(quantity.replace(",", ".")) || minQty;
 
   const handleIncrement = () => {
-    const next = Math.round((currentNumericQty + step) * 1000) / 1000;
+    const next = currentNumericQty + step;
     onQuantityChange(product.id, String(next));
   };
 
   const handleDecrement = () => {
     if (currentNumericQty <= minQty) return;
-    const next = Math.max(minQty, Math.round((currentNumericQty - step) * 1000) / 1000);
+    const next = Math.max(minQty, currentNumericQty - step);
     onQuantityChange(product.id, String(next));
   };
 
@@ -97,13 +99,13 @@ export function ProductCard({
               {formatBRL(Number(product.price))}
             </span>
             <span className="text-[10px] sm:text-[11px] font-medium text-zinc-500 ml-1">
-              /{isKG ? "kg" : "un"}
+              /{isKG ? "100g" : "un"}
             </span>
           </div>
 
           {minQty > 1 && (
             <span className="text-[9px] sm:text-[10px] font-medium text-zinc-600">
-              Mín: {minQty} {isKG ? "kg" : "un"}
+              Mín: {minQty}{isKG ? "g" : " un"}
             </span>
           )}
         </div>
@@ -125,7 +127,7 @@ export function ProductCard({
               <span className="w-8 sm:w-10 text-center text-xs font-bold text-zinc-800 select-none">
                 {currentNumericQty}
                 <span className="text-[10px] text-zinc-600 font-normal ml-0.5">
-                  {isKG ? "kg" : ""}
+                  {isKG ? "g" : ""}
                 </span>
               </span>
 
