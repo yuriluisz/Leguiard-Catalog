@@ -120,7 +120,7 @@ export function CatalogExperience({
   }, [products]);
 
   const visibleProducts = useMemo(() => {
-    return products.filter((product) => {
+    const filtered = products.filter((product) => {
       const matchesSearch =
         !search ||
         product.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -129,6 +129,12 @@ export function CatalogExperience({
       const matchesCategory = activeCategory === "all" || product.categoryId === activeCategory;
 
       return matchesSearch && matchesCategory;
+    });
+
+    return filtered.sort((a, b) => {
+      const aPinned = a.isPinned ? 1 : 0;
+      const bPinned = b.isPinned ? 1 : 0;
+      return bPinned - aPinned;
     });
   }, [products, search, activeCategory]);
 
@@ -159,6 +165,7 @@ export function CatalogExperience({
       unitType: product.unitType,
       unitPrice,
       quantity,
+      maxQuantity: product.maxQuantity ? Number(product.maxQuantity) : null,
       subtotal
     };
 
@@ -184,6 +191,7 @@ export function CatalogExperience({
       unitType: product.unitType,
       unitPrice,
       quantity: qty,
+      maxQuantity: product.maxQuantity ? Number(product.maxQuantity) : null,
       subtotal
     };
 

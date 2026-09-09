@@ -39,14 +39,28 @@ export const useCartStore = create<CartState>()(
                   return current;
                 }
 
-                const nextQuantity = current.quantity + item.quantity;
+                const max = item.maxQuantity ?? current.maxQuantity;
+                let nextQuantity = current.quantity + item.quantity;
+                if (max && nextQuantity > max) {
+                  nextQuantity = max;
+                }
+
                 return {
                   ...current,
+                  maxQuantity: max,
                   quantity: nextQuantity,
                   subtotal: calculateItemSubtotal(current.unitType, current.unitPrice, nextQuantity)
                 };
               })
-            : [...currentItems, item];
+            : [
+                item.maxQuantity && item.quantity > item.maxQuantity
+                  ? {
+                      ...item,
+                      quantity: item.maxQuantity,
+                      subtotal: calculateItemSubtotal(item.unitType, item.unitPrice, item.maxQuantity)
+                    }
+                  : item
+              ];
 
           return {
             itemsByStore: {
@@ -75,10 +89,15 @@ export const useCartStore = create<CartState>()(
               return item;
             }
 
+            let validQuantity = nextQuantity;
+            if (item.maxQuantity && validQuantity > item.maxQuantity) {
+              validQuantity = item.maxQuantity;
+            }
+
             return {
               ...item,
-              quantity: nextQuantity,
-              subtotal: calculateItemSubtotal(item.unitType, item.unitPrice, nextQuantity)
+              quantity: validQuantity,
+              subtotal: calculateItemSubtotal(item.unitType, item.unitPrice, validQuantity)
             };
           });
 

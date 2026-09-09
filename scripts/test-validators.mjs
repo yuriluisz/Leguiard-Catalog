@@ -9,6 +9,8 @@ const baseProductSchema = z.object({
   unitType: z.enum(["UN", "KG"]),
   displayFraction: z.coerce.number().int().positive().optional().nullable(),
   minQuantity: z.coerce.number().positive(),
+  maxQuantity: z.coerce.number().positive().nullable().optional(),
+  isPinned: z.coerce.boolean().default(false),
   isActive: z.coerce.boolean().default(true),
   isOutOfStock: z.coerce.boolean().default(false)
 });
@@ -91,5 +93,20 @@ assert.equal(productSchema.safeParse(invalidKg).success, false);
 // 5. Update parcial DEVE FUNCIONAR
 assert.equal(productUpdateSchema.safeParse({ minQuantity: 2, unitType: "UN" }).success, true);
 assert.equal(productUpdateSchema.safeParse({ minQuantity: 2.5, unitType: "UN" }).success, false);
+
+// 6. Produto com isPinned e maxQuantity DEVE PASSAR
+const validPinnedWithMax = {
+  categoryId: "550e8400-e29b-41d4-a716-446655440000",
+  name: "Combo 2 Vitalis",
+  price: 100,
+  unitType: "UN",
+  minQuantity: 1,
+  maxQuantity: 1,
+  isPinned: true
+};
+const parsed = baseProductSchema.safeParse(validPinnedWithMax);
+assert.equal(parsed.success, true);
+assert.equal(parsed.data.isPinned, true);
+assert.equal(parsed.data.maxQuantity, 1);
 
 console.log("Todos os testes de validators passaram!");

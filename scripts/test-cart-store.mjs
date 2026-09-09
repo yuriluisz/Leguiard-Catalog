@@ -75,4 +75,38 @@ assert.equal(state.itemsByStore.minhaloja.find((i) => i.productId === "p2").subt
 updateQuantity("minhaloja", "p2", 0);
 assert.equal(state.itemsByStore.minhaloja.length, 0);
 
+// 6. Testar limite maxQuantity
+state.itemsByStore.minhaloja = [
+  {
+    productId: "combo1",
+    productName: "Combo 2 Vitalis",
+    unitType: "UN",
+    unitPrice: 100,
+    quantity: 1,
+    maxQuantity: 1,
+    subtotal: 100
+  }
+];
+
+function updateQuantityWithMax(storeSlug, productId, nextQuantity) {
+  const currentItems = state.itemsByStore[storeSlug] ?? [];
+  state.itemsByStore[storeSlug] = currentItems.map((item) => {
+    if (item.productId !== productId) return item;
+    let validQuantity = nextQuantity;
+    if (item.maxQuantity && validQuantity > item.maxQuantity) {
+      validQuantity = item.maxQuantity;
+    }
+    return {
+      ...item,
+      quantity: validQuantity,
+      subtotal: calculateItemSubtotal(item.unitType, item.unitPrice, validQuantity)
+    };
+  });
+}
+
+// Tentativa de incrementar combo limitado a 1 para 2 deve ser travada em 1
+updateQuantityWithMax("minhaloja", "combo1", 2);
+assert.equal(state.itemsByStore.minhaloja.find((i) => i.productId === "combo1").quantity, 1);
+assert.equal(state.itemsByStore.minhaloja.find((i) => i.productId === "combo1").subtotal, 100);
+
 console.log("Todos os testes de cart-store passaram!");

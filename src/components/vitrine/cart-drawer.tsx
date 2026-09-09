@@ -63,8 +63,10 @@ export function CartDrawer({
   };
 
   const handleIncrement = (item: CartItem) => {
+    const max = item.maxQuantity ? Number(item.maxQuantity) : null;
+    if (max !== null && item.quantity >= max) return;
     const step = item.unitType === "KG" ? 50 : 1;
-    const nextQty = item.quantity + step;
+    const nextQty = max !== null ? Math.min(item.quantity + step, max) : item.quantity + step;
     setItemQty(item.productId, nextQty);
   };
 
@@ -174,53 +176,65 @@ export function CartDrawer({
               <>
                 {/* Items list */}
                 <div className="space-y-3">
-                  {cartItems.map((item) => (
-                    <div
-                      key={item.productId}
-                      className="flex items-center justify-between gap-3 rounded-2xl border border-zinc-100 bg-zinc-50/70 p-3"
-                    >
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-xs font-bold text-zinc-900">{item.productName}</p>
-                        <p className="text-[11px] text-zinc-500">
-                          {formatBRL(item.unitPrice)} / {item.unitType === "KG" ? "100g" : "un"}
-                        </p>
-                        <p className="mt-1 text-xs font-extrabold text-zinc-900">
-                          {formatBRL(item.subtotal)}
-                        </p>
-                      </div>
+                  {cartItems.map((item) => {
+                    const isAtMax = Boolean(item.maxQuantity && item.quantity >= item.maxQuantity);
 
-                      {/* Stepper */}
-                      <div className="flex items-center gap-1 rounded-xl border border-zinc-200 bg-white p-0.5">
-                        <button
-                          type="button"
-                          onClick={() => handleDecrement(item)}
-                          className="flex h-6 w-6 items-center justify-center rounded-lg text-zinc-600 hover:bg-zinc-100"
-                        >
-                          <Minus className="h-3 w-3" />
-                        </button>
-                        <span className="w-10 text-center text-xs font-bold text-zinc-800">
-                          {item.quantity}
-                          {item.unitType === "KG" ? "g" : " un"}
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => handleIncrement(item)}
-                          className="flex h-6 w-6 items-center justify-center rounded-lg text-zinc-600 hover:bg-zinc-100"
-                        >
-                          <Plus className="h-3 w-3" />
-                        </button>
-                      </div>
-
-                      <button
-                        type="button"
-                        onClick={() => onRemoveItem(item.productId)}
-                        className="text-zinc-400 hover:text-red-600 p-1"
-                        aria-label="Remover item"
+                    return (
+                      <div
+                        key={item.productId}
+                        className="flex items-center justify-between gap-3 rounded-2xl border border-zinc-100 bg-zinc-50/70 p-3"
                       >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                    </div>
-                  ))}
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-xs font-bold text-zinc-900">{item.productName}</p>
+                          <p className="text-[11px] text-zinc-500">
+                            {formatBRL(item.unitPrice)} / {item.unitType === "KG" ? "100g" : "un"}
+                          </p>
+                          <div className="flex items-center gap-2 mt-1">
+                            <p className="text-xs font-extrabold text-zinc-900">
+                              {formatBRL(item.subtotal)}
+                            </p>
+                            {Boolean(item.maxQuantity) && (
+                              <span className="text-[9px] font-bold text-amber-800 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200">
+                                Máx: {item.maxQuantity}{item.unitType === "KG" ? "g" : " un"}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Stepper */}
+                        <div className="flex items-center gap-1 rounded-xl border border-zinc-200 bg-white p-0.5">
+                          <button
+                            type="button"
+                            onClick={() => handleDecrement(item)}
+                            className="flex h-6 w-6 items-center justify-center rounded-lg text-zinc-600 hover:bg-zinc-100 active:scale-90"
+                          >
+                            <Minus className="h-3 w-3" />
+                          </button>
+                          <span className="w-10 text-center text-xs font-bold text-zinc-800">
+                            {item.quantity}
+                            {item.unitType === "KG" ? "g" : " un"}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => handleIncrement(item)}
+                            disabled={isAtMax}
+                            className="flex h-6 w-6 items-center justify-center rounded-lg text-zinc-600 hover:bg-zinc-100 disabled:opacity-40 disabled:cursor-not-allowed active:scale-90"
+                          >
+                            <Plus className="h-3 w-3" />
+                          </button>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => onRemoveItem(item.productId)}
+                          className="text-zinc-400 hover:text-red-600 p-1"
+                          aria-label="Remover item"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
+                    );
+                  })}
 
                   <div className="flex justify-end">
                     <button

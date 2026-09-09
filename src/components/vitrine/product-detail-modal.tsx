@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Image from "next/image";
-import { X, Plus, Minus, ShoppingBag, Check, Package } from "lucide-react";
+import { X, Plus, Minus, ShoppingBag, Check, Package, Star } from "lucide-react";
 
 import { formatBRL } from "@/lib/format";
 import { calculateSubtotal, getUnitBadge } from "@/lib/pricing";
@@ -27,8 +27,12 @@ export function ProductDetailModal({
     ? Math.max(10, Math.round(Number(product?.minQuantity) || 50))
     : Math.max(1, Math.round(Number(product?.minQuantity) || 1));
 
+  const maxQty = product?.maxQuantity ? Number(product.maxQuantity) : null;
+
   const [quantity, setQuantity] = useState<number>(minQty);
   const [isAdded, setIsAdded] = useState(false);
+
+  const isAtMax = maxQty !== null && quantity >= maxQty;
 
   // Sincroniza quantidade inicial sempre que abrir com um produto novo
   useEffect(() => {
@@ -36,10 +40,11 @@ export function ProductDetailModal({
       const initial = isKG
         ? Math.max(10, Math.round(Number(product.minQuantity) || 50))
         : Math.max(1, Math.round(Number(product.minQuantity) || 1));
-      setQuantity(initial);
+      const cappedInitial = maxQty !== null ? Math.min(initial, maxQty) : initial;
+      setQuantity(cappedInitial);
       setIsAdded(false);
     }
-  }, [product, isKG]);
+  }, [product, isKG, maxQty]);
 
   // Fecha no ESC
   useEffect(() => {
@@ -57,7 +62,11 @@ export function ProductDetailModal({
   const currentSubtotal = calculateSubtotal(product, quantity);
 
   const handleIncrement = () => {
-    setQuantity((prev) => prev + step);
+    if (isAtMax) return;
+    setQuantity((prev) => {
+      const next = prev + step;
+      return maxQty !== null ? Math.min(next, maxQty) : next;
+    });
   };
 
   const handleDecrement = () => {
@@ -121,6 +130,16 @@ export function ProductDetailModal({
               </span>
             </div>
 
+            {/* Badge de Destaque */}
+            {product.isPinned && (
+              <div className="absolute right-3 top-3">
+                <span className="inline-flex items-center gap-1 rounded-lg bg-amber-500 px-2.5 py-1 text-xs font-extrabold text-white shadow-sm backdrop-blur-md">
+                  <Star className="h-3.5 w-3.5 fill-white" />
+                  Destaque
+                </span>
+              </div>
+            )}
+
             {product.isOutOfStock && (
               <div className="absolute inset-0 flex items-center justify-center bg-black/60 backdrop-blur-[2px]">
                 <span className="rounded-full bg-red-600 px-3.5 py-1.5 text-xs font-bold text-white shadow-sm">
@@ -137,7 +156,7 @@ export function ProductDetailModal({
                 {product.name}
               </h2>
 
-              <div className="mt-2 flex items-baseline gap-2">
+              <div className="mt-2 flex flex-wrap items-baseline gap-2">
                 <span className="text-xl sm:text-2xl font-extrabold text-zinc-900 tracking-tight">
                   {formatBRL(Number(product.price))}
                 </span>
@@ -145,11 +164,18 @@ export function ProductDetailModal({
                   /{isKG ? "100g" : "un"}
                 </span>
 
-                {minQty > 1 && (
-                  <span className="rounded-md bg-zinc-100 px-2 py-0.5 text-[11px] font-semibold text-zinc-600 ml-auto">
-                    Mínimo: {minQty}{isKG ? "g" : " un"}
-                  </span>
-                )}
+                <div className="flex flex-wrap items-center gap-1.5 ml-auto">
+                  {minQty > 1 && (
+                    <span className="rounded-md bg-zinc-100 px-2 py-0.5 text-[11px] font-semibold text-zinc-600">
+                      Mín: {minQty}{isKG ? "g" : " un"}
+                    </span>
+                  )}
+                  {maxQty !== null && (
+                    <span className="rounded-md bg-amber-50 border border-amber-200 px-2 py-0.5 text-[11px] font-bold text-amber-800">
+                      Máx: {maxQty}{isKG ? "g" : " un"} por pedido
+                    </span>
+                  )}
+                </div>
               </div>
 
               {product.description && (
@@ -201,8 +227,9 @@ export function ProductDetailModal({
               <button
                 type="button"
                 onClick={handleIncrement}
+                disabled={isAtMax}
                 aria-label="Aumentar quantidade"
-                className="flex h-8 w-8 items-center justify-center rounded-lg text-zinc-600 hover:bg-zinc-100 active:scale-90"
+                className="flex h-8 w-8 items-center justify-center rounded-lg text-zinc-600 hover:bg-zinc-100 disabled:opacity-40 disabled:cursor-not-allowed active:scale-90"
               >
                 <Plus className="h-4 w-4" />
               </button>

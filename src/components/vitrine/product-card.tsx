@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { Plus, Minus, Check, ShoppingBag, Package } from "lucide-react";
+import { Plus, Minus, Check, ShoppingBag, Package, Star } from "lucide-react";
 
 import { formatBRL } from "@/lib/format";
 import { getUnitBadge } from "@/lib/pricing";
@@ -30,11 +30,14 @@ export function ProductCard({
     ? Math.max(10, Math.round(Number(product.minQuantity) || 50))
     : Math.max(1, Math.round(Number(product.minQuantity) || 1));
 
+  const maxQty = product.maxQuantity ? Number(product.maxQuantity) : null;
   const currentNumericQty = Number(quantity.replace(",", ".")) || minQty;
+  const isAtMax = maxQty !== null && currentNumericQty >= maxQty;
 
   const handleIncrement = () => {
+    if (isAtMax) return;
     const next = currentNumericQty + step;
-    onQuantityChange(product.id, String(next));
+    onQuantityChange(product.id, String(maxQty !== null ? Math.min(next, maxQty) : next));
   };
 
   const handleDecrement = () => {
@@ -44,7 +47,13 @@ export function ProductCard({
   };
 
   return (
-    <div className="group relative flex flex-col justify-between overflow-hidden rounded-2xl border border-zinc-200/80 bg-white p-2.5 sm:p-3.5 shadow-xs transition-all duration-200 hover:-translate-y-1 hover:border-zinc-300 hover:shadow-md">
+    <div
+      className={`group relative flex flex-col justify-between overflow-hidden rounded-2xl bg-white p-2.5 sm:p-3.5 shadow-xs transition-all duration-200 hover:-translate-y-1 hover:shadow-md ${
+        product.isPinned
+          ? "border border-amber-300/80 ring-1 ring-amber-400/20 shadow-amber-500/5"
+          : "border border-zinc-200/80 hover:border-zinc-300"
+      }`}
+    >
       {/* Top: Image & Badges (Clique abre detalhes) */}
       <div
         role="button"
@@ -78,6 +87,16 @@ export function ProductCard({
               {getUnitBadge(product)}
             </span>
           </div>
+
+          {/* Pinned / Destaque Badge */}
+          {product.isPinned && (
+            <div className="absolute right-2 top-2 z-10">
+              <span className="inline-flex items-center gap-1 rounded-lg bg-amber-500 px-2 py-0.5 text-[10px] font-extrabold text-white shadow-xs backdrop-blur-md">
+                <Star className="h-3 w-3 fill-white" />
+                Destaque
+              </span>
+            </div>
+          )}
 
           {/* Out of stock overlay */}
           {product.isOutOfStock && (
@@ -115,11 +134,18 @@ export function ProductCard({
             </span>
           </div>
 
-          {minQty > 1 && (
-            <span className="text-[9px] sm:text-[10px] font-medium text-zinc-600">
-              Mín: {minQty}{isKG ? "g" : " un"}
-            </span>
-          )}
+          <div className="flex items-center gap-1.5">
+            {minQty > 1 && (
+              <span className="text-[9px] sm:text-[10px] font-medium text-zinc-500">
+                Mín: {minQty}{isKG ? "g" : " un"}
+              </span>
+            )}
+            {maxQty !== null && (
+              <span className="text-[9px] sm:text-[10px] font-bold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200">
+                Máx: {maxQty}{isKG ? "g" : " un"}
+              </span>
+            )}
+          </div>
         </div>
 
         {/* Stepper + Dynamic Color Add Button */}
@@ -146,8 +172,9 @@ export function ProductCard({
               <button
                 type="button"
                 onClick={handleIncrement}
+                disabled={isAtMax}
                 aria-label="Aumentar quantidade"
-                className="flex h-7.5 w-7.5 sm:h-7 sm:w-7 items-center justify-center rounded-lg bg-white text-zinc-600 shadow-xs transition hover:bg-zinc-100 active:scale-90"
+                className="flex h-7.5 w-7.5 sm:h-7 sm:w-7 items-center justify-center rounded-lg bg-white text-zinc-600 shadow-xs transition hover:bg-zinc-100 disabled:opacity-40 disabled:cursor-not-allowed active:scale-90"
               >
                 <Plus className="h-3.5 w-3.5 sm:h-3 sm:w-3" />
               </button>

@@ -16,7 +16,8 @@ import {
   PackageCheck,
   PackageX,
   X,
-  Package
+  Package,
+  Star
 } from "lucide-react";
 
 import { fetchJson } from "@/lib/http";
@@ -39,6 +40,8 @@ type Product = {
   unitType: "UN" | "KG";
   displayFraction: number | null;
   minQuantity: number;
+  maxQuantity?: number | null;
+  isPinned?: boolean;
   imageUrl: string | null;
   isActive: boolean;
   isOutOfStock: boolean;
@@ -52,6 +55,8 @@ type ProductForm = {
   unitType: "UN" | "KG";
   displayFraction: string;
   minQuantity: string;
+  maxQuantity: string;
+  isPinned: boolean;
   imageUrl: string;
   isActive: boolean;
   isOutOfStock: boolean;
@@ -65,6 +70,8 @@ const emptyForm: ProductForm = {
   unitType: "UN",
   displayFraction: "100",
   minQuantity: "1",
+  maxQuantity: "",
+  isPinned: false,
   imageUrl: "",
   isActive: true,
   isOutOfStock: false
@@ -151,6 +158,8 @@ export function ProductsManager() {
       unitType: currentForm.unitType,
       displayFraction: currentForm.unitType === "KG" ? Number(currentForm.displayFraction) : null,
       minQuantity: Number(currentForm.minQuantity),
+      maxQuantity: currentForm.maxQuantity.trim() ? Number(currentForm.maxQuantity) : null,
+      isPinned: currentForm.isPinned,
       imageUrl: currentForm.imageUrl,
       isActive: currentForm.isActive,
       isOutOfStock: currentForm.isOutOfStock
@@ -206,6 +215,8 @@ export function ProductsManager() {
       unitType: product.unitType,
       displayFraction: String(product.displayFraction ?? 100),
       minQuantity: String(product.minQuantity),
+      maxQuantity: product.maxQuantity ? String(product.maxQuantity) : "",
+      isPinned: Boolean(product.isPinned),
       imageUrl: product.imageUrl ?? "",
       isActive: product.isActive,
       isOutOfStock: product.isOutOfStock
@@ -410,6 +421,22 @@ export function ProductsManager() {
               />
             </div>
 
+            <div>
+              <label className="block text-xs font-bold text-zinc-700 mb-1">
+                Limite Máx. por Pedido ({form.unitType === "KG" ? "em Gramas" : "unidades"})
+              </label>
+              <input
+                type="number"
+                step={form.unitType === "KG" ? "50" : "1"}
+                min="1"
+                value={form.maxQuantity}
+                onChange={(e) => setForm((prev) => ({ ...prev, maxQuantity: e.target.value }))}
+                placeholder="Opcional (sem limite)"
+                className="w-full rounded-xl border border-zinc-200 px-3 py-2 text-xs focus:border-blue-600 focus:outline-none"
+              />
+              <p className="text-[10px] text-zinc-400 mt-1">Ex: 1 para combos promocionais ou ofertas limitadas.</p>
+            </div>
+
             {form.unitType === "KG" && (
               <div>
                 <label className="block text-xs font-bold text-zinc-700 mb-1">
@@ -460,7 +487,20 @@ export function ProductsManager() {
             </div>
 
             {/* Flags */}
-            <div className="flex items-center gap-6 sm:col-span-2 lg:col-span-3 pt-2">
+            <div className="flex flex-wrap items-center gap-4 sm:gap-6 sm:col-span-2 lg:col-span-3 pt-2">
+              <label className="inline-flex items-center gap-2 rounded-xl bg-amber-50 px-3 py-2 border border-amber-200/80 text-xs font-bold text-amber-900 cursor-pointer shadow-xs hover:bg-amber-100/70 transition">
+                <input
+                  type="checkbox"
+                  checked={form.isPinned}
+                  onChange={(e) => setForm((prev) => ({ ...prev, isPinned: e.target.checked }))}
+                  className="rounded border-amber-300 text-amber-600 focus:ring-amber-500"
+                />
+                <span className="flex items-center gap-1.5">
+                  <Star className={`h-3.5 w-3.5 ${form.isPinned ? "fill-amber-500 text-amber-500" : "text-amber-600"}`} />
+                  Fixar no Topo (Destaque)
+                </span>
+              </label>
+
               <label className="inline-flex items-center gap-2 text-xs font-bold text-zinc-700 cursor-pointer">
                 <input
                   type="checkbox"
@@ -568,6 +608,15 @@ export function ProductsManager() {
                     </span>
                   </div>
 
+                  {p.isPinned && (
+                    <div className="absolute right-2 top-2">
+                      <span className="flex items-center gap-1 rounded-lg bg-amber-500/95 px-2 py-0.5 text-[10px] font-extrabold text-white shadow-xs backdrop-blur-sm">
+                        <Star className="h-3 w-3 fill-white" />
+                        Destaque
+                      </span>
+                    </div>
+                  )}
+
                   {p.isOutOfStock && (
                     <div className="absolute inset-0 flex items-center justify-center bg-black/60 backdrop-blur-[1px]">
                       <span className="rounded-full bg-red-600 px-2.5 py-0.5 text-[10px] font-extrabold text-white">
@@ -578,9 +627,16 @@ export function ProductsManager() {
                 </div>
 
                 <div>
-                  <span className="text-[10px] font-extrabold uppercase tracking-wider text-blue-600">
-                    {p.category?.name || "Geral"}
-                  </span>
+                  <div className="flex items-center justify-between gap-1">
+                    <span className="text-[10px] font-extrabold uppercase tracking-wider text-blue-600">
+                      {p.category?.name || "Geral"}
+                    </span>
+                    {p.isPinned && (
+                      <span className="text-[10px] font-bold text-amber-600 flex items-center gap-0.5">
+                        ⭐ Fixado
+                      </span>
+                    )}
+                  </div>
                   <h4 className="line-clamp-1 text-sm font-extrabold text-zinc-900 mt-0.5">{p.name}</h4>
                   {p.description && (
                     <p className="line-clamp-2 text-xs text-zinc-500 mt-1 leading-relaxed">
@@ -595,9 +651,16 @@ export function ProductsManager() {
                   <span className="text-base font-extrabold text-zinc-900">
                     {formatBRL(Number(p.price))}
                   </span>
-                  <span className="text-[11px] font-medium text-zinc-500">
-                    Mín: {p.minQuantity}{p.unitType === "KG" ? "g" : " un"}
-                  </span>
+                  <div className="flex flex-col items-end gap-0.5">
+                    <span className="text-[11px] font-medium text-zinc-500">
+                      Mín: {p.minQuantity}{p.unitType === "KG" ? "g" : " un"}
+                    </span>
+                    {Boolean(p.maxQuantity) && (
+                      <span className="text-[10px] font-bold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded-md border border-amber-200">
+                        Máx: {p.maxQuantity}{p.unitType === "KG" ? "g" : " un"}
+                      </span>
+                    )}
+                  </div>
                 </div>
 
                 <div className="flex flex-wrap items-center gap-1.5">
@@ -608,6 +671,19 @@ export function ProductsManager() {
                   >
                     <Edit2 className="h-3 w-3" />
                     <span>Editar</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => void patchQuick(p.id, { isPinned: !p.isPinned })}
+                    title={p.isPinned ? "Desafixar do topo" : "Fixar no topo (Destaque)"}
+                    className={`inline-flex items-center justify-center rounded-xl p-1.5 text-xs font-bold transition active:scale-95 ${
+                      p.isPinned
+                        ? "bg-amber-100 text-amber-800 border border-amber-300 shadow-xs"
+                        : "bg-zinc-100 text-zinc-400 hover:text-amber-600 hover:bg-zinc-200"
+                    }`}
+                  >
+                    <Star className={`h-3.5 w-3.5 ${p.isPinned ? "fill-amber-500 text-amber-500" : ""}`} />
                   </button>
 
                   <button
