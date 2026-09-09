@@ -40,6 +40,8 @@ export type ProductRecord = {
   unitType: UnitType;
   displayFraction: number | null;
   minQuantity: number;
+  maxQuantity: number | null;
+  isPinned: boolean;
   imageUrl: string | null;
   isActive: boolean;
   isOutOfStock: boolean;
@@ -52,6 +54,7 @@ export type CartItem = {
   unitPrice: number;
   quantity: number;
   subtotal: number;
+  maxQuantity?: number | null;
 };
 
 export type CheckoutPayload = {

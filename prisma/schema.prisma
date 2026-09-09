@@ -83,6 +83,8 @@ model Product {
   unitType        UnitType
   displayFraction Int?
   minQuantity     Decimal   @default(1) @db.Decimal(10, 3)
+  maxQuantity     Decimal?  @db.Decimal(10, 3)
+  isPinned        Boolean   @default(false)
   imageUrl        String?
   isActive        Boolean   @default(true)
   isOutOfStock    Boolean   @default(false)
@@ -91,6 +93,7 @@ model Product {
 
   @@index([storeId, categoryId])
   @@index([storeId, isActive, isOutOfStock])
+  @@index([storeId, isPinned, isActive])
   @@index([storeId, name])
   @@map("products")
 }
