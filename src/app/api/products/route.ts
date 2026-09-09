@@ -53,7 +53,7 @@ export async function GET(request: Request) {
         include: {
           category: true
         },
-        orderBy: [{ category: { displayOrder: "asc" } }, { name: "asc" }]
+        orderBy: [{ isPinned: "desc" }, { category: { displayOrder: "asc" } }, { name: "asc" }]
       });
 
       return products.map(serializeProduct);
@@ -91,7 +91,7 @@ export async function GET(request: Request) {
     include: {
       category: true
     },
-    orderBy: [{ category: { displayOrder: "asc" } }, { name: "asc" }]
+    orderBy: [{ isPinned: "desc" }, { category: { displayOrder: "asc" } }, { name: "asc" }]
   });
 
   return NextResponse.json(products.map(serializeProduct));

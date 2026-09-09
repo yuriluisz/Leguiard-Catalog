@@ -100,6 +100,8 @@ export const baseProductSchema = z.object({
   unitType: z.enum(["UN", "KG"]),
   displayFraction: z.coerce.number().int().positive().optional().nullable(),
   minQuantity: z.coerce.number().positive(),
+  maxQuantity: z.coerce.number().positive().nullable().optional(),
+  isPinned: z.coerce.boolean().default(false),
   imageUrl: assetUrlSchema.optional(),
   isActive: z.coerce.boolean().default(true),
   isOutOfStock: z.coerce.boolean().default(false)
