@@ -8,12 +8,20 @@ import type { CartItem } from "@/types";
 type CartState = {
   itemsByStore: Record<string, CartItem[]>;
   addItem: (storeSlug: string, item: CartItem) => void;
+  updateQuantity: (storeSlug: string, productId: string, nextQuantity: number) => void;
   removeItem: (storeSlug: string, productId: string) => void;
   clearStore: (storeSlug: string) => void;
 };
 
 function toCurrency(value: number): number {
   return Number(value.toFixed(2));
+}
+
+function calculateItemSubtotal(unitType: "UN" | "KG", unitPrice: number, quantity: number): number {
+  if (unitType === "KG") {
+    return toCurrency((unitPrice / 100) * quantity);
+  }
+  return toCurrency(unitPrice * quantity);
 }
 
 export const useCartStore = create<CartState>()(
@@ -35,10 +43,44 @@ export const useCartStore = create<CartState>()(
                 return {
                   ...current,
                   quantity: nextQuantity,
-                  subtotal: toCurrency(nextQuantity * current.unitPrice)
+                  subtotal: calculateItemSubtotal(current.unitType, current.unitPrice, nextQuantity)
                 };
               })
             : [...currentItems, item];
+
+          return {
+            itemsByStore: {
+              ...state.itemsByStore,
+              [storeSlug]: nextItems
+            }
+          };
+        });
+      },
+      updateQuantity: (storeSlug, productId, nextQuantity) => {
+        set((state) => {
+          const currentItems = state.itemsByStore[storeSlug] ?? [];
+
+          // Remove automaticamente se quantidade for 0 ou menor
+          if (nextQuantity <= 0) {
+            return {
+              itemsByStore: {
+                ...state.itemsByStore,
+                [storeSlug]: currentItems.filter((item) => item.productId !== productId)
+              }
+            };
+          }
+
+          const nextItems = currentItems.map((item) => {
+            if (item.productId !== productId) {
+              return item;
+            }
+
+            return {
+              ...item,
+              quantity: nextQuantity,
+              subtotal: calculateItemSubtotal(item.unitType, item.unitPrice, nextQuantity)
+            };
+          });
 
           return {
             itemsByStore: {
