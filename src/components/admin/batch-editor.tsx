@@ -255,10 +255,10 @@ export function BatchEditor() {
             <label className="block text-xs font-bold text-zinc-700 mb-1">Quantidade Mínima</label>
             <input
               type="number"
-              step="0.05"
-              min="0"
+              step="1"
+              min="1"
               className="w-full rounded-xl border border-zinc-200 px-3 py-2 text-xs focus:border-blue-600 focus:outline-none"
-              placeholder="Ex: 0.25 ou 1"
+              placeholder="Ex: 1 para UN ou 50 para Peso"
               value={minQuantity}
               onChange={(e) => setMinQuantity(e.target.value)}
             />

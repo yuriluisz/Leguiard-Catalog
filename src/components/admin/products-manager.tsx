@@ -350,7 +350,9 @@ export function ProductsManager() {
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-zinc-700 mb-1">Preço (R$) *</label>
+              <label className="block text-xs font-bold text-zinc-700 mb-1">
+                Preço (R$) {form.unitType === "KG" ? "(para cada 100g) *" : "por unidade *"}
+              </label>
               <input
                 required
                 type="number"
@@ -382,27 +384,28 @@ export function ProductsManager() {
                   setForm((prev) => ({
                     ...prev,
                     unitType: val,
-                    minQuantity: val === "KG" ? "0.25" : "1"
+                    minQuantity: val === "KG" ? "50" : "1"
                   }));
                 }}
                 className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-xs font-semibold focus:border-blue-600 focus:outline-none"
               >
                 <option value="UN">Unidade (UN)</option>
-                <option value="KG">Quilo / Peso (KG)</option>
+                <option value="KG">Peso / a cada 100g (KG)</option>
               </select>
             </div>
 
             <div>
               <label className="block text-xs font-bold text-zinc-700 mb-1">
-                Quantidade Mínima ({form.unitType}) *
+                Quantidade Mínima ({form.unitType === "KG" ? "em Gramas - ex: 50" : "unidades"}) *
               </label>
               <input
                 required
                 type="number"
-                step={form.unitType === "KG" ? "0.05" : "1"}
-                min="0.01"
+                step={form.unitType === "KG" ? "10" : "1"}
+                min={form.unitType === "KG" ? "10" : "1"}
                 value={form.minQuantity}
                 onChange={(e) => setForm((prev) => ({ ...prev, minQuantity: e.target.value }))}
+                placeholder={form.unitType === "KG" ? "Ex: 50" : "Ex: 1"}
                 className="w-full rounded-xl border border-zinc-200 px-3 py-2 text-xs focus:border-blue-600 focus:outline-none"
               />
             </div>
@@ -593,7 +596,7 @@ export function ProductsManager() {
                     {formatBRL(Number(p.price))}
                   </span>
                   <span className="text-[11px] font-medium text-zinc-500">
-                    Mín: {p.minQuantity} {p.unitType === "KG" ? "kg" : "un"}
+                    Mín: {p.minQuantity}{p.unitType === "KG" ? "g" : " un"}
                   </span>
                 </div>
 
