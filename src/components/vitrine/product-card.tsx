@@ -12,6 +12,7 @@ type ProductCardProps = {
   quantity: string;
   onQuantityChange: (id: string, value: string) => void;
   onAddToCart: (product: ProductRecord) => void;
+  onOpenDetails?: (product: ProductRecord) => void;
   isAddedJustNow?: boolean;
 };
 
@@ -20,6 +21,7 @@ export function ProductCard({
   quantity,
   onQuantityChange,
   onAddToCart,
+  onOpenDetails,
   isAddedJustNow
 }: ProductCardProps) {
   const isKG = product.unitType === "KG";
@@ -43,8 +45,18 @@ export function ProductCard({
 
   return (
     <div className="group relative flex flex-col justify-between overflow-hidden rounded-2xl border border-zinc-200/80 bg-white p-2.5 sm:p-3.5 shadow-xs transition-all duration-200 hover:-translate-y-1 hover:border-zinc-300 hover:shadow-md">
-      {/* Top: Image & Badges */}
-      <div>
+      {/* Top: Image & Badges (Clique abre detalhes) */}
+      <div
+        role="button"
+        tabIndex={0}
+        onClick={() => onOpenDetails?.(product)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            onOpenDetails?.(product);
+          }
+        }}
+        className="cursor-pointer focus:outline-none"
+      >
         <div className="relative aspect-square w-full overflow-hidden rounded-xl bg-zinc-100/80">
           {product.imageUrl ? (
             <Image
