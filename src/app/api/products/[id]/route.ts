@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { serializeProduct } from "@/lib/serialize";
 import { resolveAdminStoreContext } from "@/lib/tenant";
-import { productSchema } from "@/lib/validators";
+import { productUpdateSchema } from "@/lib/validators";
 import { invalidateStoreCache } from "@/lib/cache";
 
 type Context = {
@@ -20,7 +20,7 @@ export async function PATCH(request: Request, { params }: Context) {
 
   try {
     const body = await request.json();
-    const payload = productSchema.partial().parse(body);
+    const payload = productUpdateSchema.parse(body);
 
     const existing = await prisma.product.findFirst({
       where: {

@@ -92,7 +92,7 @@ export const categorySchema = z.object({
   displayOrder: z.coerce.number().int().min(0).default(0)
 });
 
-export const productSchema = z.object({
+export const baseProductSchema = z.object({
   categoryId: z.string().uuid(),
   name: z.string().min(2),
   description: z.string().optional().nullable(),
@@ -104,6 +104,41 @@ export const productSchema = z.object({
   isActive: z.coerce.boolean().default(true),
   isOutOfStock: z.coerce.boolean().default(false)
 });
+
+export const productSchema = baseProductSchema.refine(
+  (data) => {
+    if (data.unitType === "UN") {
+      return Number.isInteger(data.minQuantity) && data.minQuantity >= 1;
+    }
+    if (data.unitType === "KG") {
+      return Number.isInteger(data.minQuantity) && data.minQuantity >= 10;
+    }
+    return true;
+  },
+  {
+    message: "Quantidade mínima inválida para a unidade selecionada (UN deve ser inteiro >= 1 e Peso deve ser em gramas >= 10)",
+    path: ["minQuantity"]
+  }
+);
+
+export const productUpdateSchema = baseProductSchema.partial().refine(
+  (data) => {
+    if (data.minQuantity !== undefined) {
+      if (data.unitType === "UN") {
+        return Number.isInteger(data.minQuantity) && data.minQuantity >= 1;
+      }
+      if (data.unitType === "KG") {
+        return Number.isInteger(data.minQuantity) && data.minQuantity >= 10;
+      }
+      return Number.isInteger(data.minQuantity) && data.minQuantity >= 1;
+    }
+    return true;
+  },
+  {
+    message: "Quantidade mínima inválida para a unidade selecionada",
+    path: ["minQuantity"]
+  }
+);
 
 export const leadSchema = z.object({
   name: z.string().min(2),
@@ -121,7 +156,13 @@ export const batchUpdateSchema = z.object({
       isActive: z.boolean().optional(),
       isOutOfStock: z.boolean().optional(),
       categoryId: z.string().uuid().optional(),
-      minQuantity: z.coerce.number().positive().optional()
+      minQuantity: z.coerce
+        .number()
+        .positive()
+        .refine((val) => Number.isInteger(val) && val >= 1, {
+          message: "Quantidade mínima deve ser um número inteiro"
+        })
+        .optional()
     })
     .refine((value) => Object.keys(value).length > 0, {
       message: "Nenhum campo para atualizar"
