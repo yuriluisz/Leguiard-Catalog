@@ -13,6 +13,7 @@ import { ProductCard } from "./product-card";
 import { FloatingCartBar } from "./floating-cart-bar";
 import { CartDrawer } from "./cart-drawer";
 import { LeadModal } from "./lead-modal";
+import { ProductDetailModal } from "./product-detail-modal";
 import { WhatsAppFloatingButton } from "./whatsapp-floating-button";
 
 type Category = {
@@ -56,6 +57,7 @@ export function CatalogExperience({
   const [cartOpen, setCartOpen] = useState(false);
   const [showLeadModal, setShowLeadModal] = useState(false);
   const [lastAddedId, setLastAddedId] = useState<string | null>(null);
+  const [detailProduct, setDetailProduct] = useState<ProductRecord | null>(null);
 
   const cartItems = useCartStore((state) => state.itemsByStore[slug] ?? EMPTY_CART);
   const addItem = useCartStore((state) => state.addItem);
@@ -169,6 +171,30 @@ export function CatalogExperience({
     }, 1500);
   };
 
+  const handleAddToCartFromModal = (product: ProductRecord, qty: number) => {
+    const isKG = product.unitType === "KG";
+    const unitPrice = Number(product.price);
+    const subtotal = isKG
+      ? Math.round(((unitPrice / 100) * qty) * 100) / 100
+      : Math.round(unitPrice * qty * 100) / 100;
+
+    const item: CartItem = {
+      productId: product.id,
+      productName: product.name,
+      unitType: product.unitType,
+      unitPrice,
+      quantity: qty,
+      subtotal
+    };
+
+    addItem(slug, item);
+
+    setLastAddedId(product.id);
+    setTimeout(() => {
+      setLastAddedId(null);
+    }, 1500);
+  };
+
   const handleLeadCaptured = (name: string, phone: string) => {
     setCheckout((prev) => ({
       ...prev,
@@ -265,6 +291,7 @@ export function CatalogExperience({
                 quantity={quantities[product.id] ?? ""}
                 onQuantityChange={handleQuantityChange}
                 onAddToCart={handleAddToCart}
+                onOpenDetails={setDetailProduct}
                 isAddedJustNow={lastAddedId === product.id}
               />
             ))}
@@ -303,6 +330,14 @@ export function CatalogExperience({
         isOpen={showLeadModal}
         onClose={() => setShowLeadModal(false)}
         onLeadCaptured={handleLeadCaptured}
+      />
+
+      {/* 8. Product Detail Modal / Bottom Sheet */}
+      <ProductDetailModal
+        product={detailProduct}
+        isOpen={Boolean(detailProduct)}
+        onClose={() => setDetailProduct(null)}
+        onAddToCart={handleAddToCartFromModal}
       />
     </div>
   );
