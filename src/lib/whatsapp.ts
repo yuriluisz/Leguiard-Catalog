@@ -18,7 +18,7 @@ export function buildCheckoutText(
   const total = subtotal + appliedDeliveryFee;
 
   const itemLines = items.map((item) => {
-    const quantityLabel = item.unitType === "KG" ? `${item.quantity} kg` : `${item.quantity} un`;
+    const quantityLabel = item.unitType === "KG" ? `${item.quantity}g` : `${item.quantity} un`;
     return `- ${item.productName} | ${quantityLabel} | ${formatBRL(item.subtotal)}`;
   });
 

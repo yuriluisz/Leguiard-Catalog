@@ -5,6 +5,7 @@ import { X, Trash2, Plus, Minus, ShoppingBag, Send, AlertCircle } from "lucide-r
 
 import { formatBRL } from "@/lib/format";
 import { fetchJson } from "@/lib/http";
+import { useCartStore } from "@/stores/cart-store";
 import type { CartItem, CheckoutPayload, PaymentMethod, StoreRecord } from "@/types";
 
 type CartDrawerProps = {
@@ -14,6 +15,7 @@ type CartDrawerProps = {
   store: StoreRecord;
   cartItems: CartItem[];
   onAddItem: (item: CartItem) => void;
+  onUpdateQuantity?: (productId: string, quantity: number) => void;
   onRemoveItem: (productId: string, quantity?: number) => void;
   onClearCart: () => void;
   checkout: CheckoutPayload;
@@ -33,6 +35,7 @@ export function CartDrawer({
   store,
   cartItems,
   onAddItem,
+  onUpdateQuantity,
   onRemoveItem,
   onClearCart,
   checkout,
@@ -40,6 +43,8 @@ export function CartDrawer({
 }: CartDrawerProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  const updateQuantityStore = useCartStore((state) => state.updateQuantity);
 
   if (!isOpen) return null;
 
@@ -49,33 +54,30 @@ export function CartDrawer({
 
   const acceptedPayments = store.settings.checkout.acceptedPayments || ["PIX", "CARTAO", "DINHEIRO"];
 
-  const handleIncrement = (item: CartItem) => {
-    const step = item.unitType === "KG" ? 0.25 : 1;
-    const nextQty = Math.round((item.quantity + step) * 1000) / 1000;
-    const nextSubtotal = Math.round(nextQty * item.unitPrice * 100) / 100;
+  const setItemQty = (productId: string, quantity: number) => {
+    if (onUpdateQuantity) {
+      onUpdateQuantity(productId, quantity);
+    } else {
+      updateQuantityStore(slug, productId, quantity);
+    }
+  };
 
-    onAddItem({
-      ...item,
-      quantity: nextQty,
-      subtotal: nextSubtotal
-    });
+  const handleIncrement = (item: CartItem) => {
+    const step = item.unitType === "KG" ? 50 : 1;
+    const nextQty = item.quantity + step;
+    setItemQty(item.productId, nextQty);
   };
 
   const handleDecrement = (item: CartItem) => {
-    const step = item.unitType === "KG" ? 0.25 : 1;
-    if (item.quantity <= step) {
+    const step = item.unitType === "KG" ? 50 : 1;
+    const nextQty = item.quantity - step;
+
+    if (nextQty <= 0) {
       onRemoveItem(item.productId);
       return;
     }
 
-    const nextQty = Math.max(step, Math.round((item.quantity - step) * 1000) / 1000);
-    const nextSubtotal = Math.round(nextQty * item.unitPrice * 100) / 100;
-
-    onAddItem({
-      ...item,
-      quantity: nextQty,
-      subtotal: nextSubtotal
-    });
+    setItemQty(item.productId, nextQty);
   };
 
   const handleSubmitOrder = async () => {
@@ -180,7 +182,7 @@ export function CartDrawer({
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-xs font-bold text-zinc-900">{item.productName}</p>
                         <p className="text-[11px] text-zinc-500">
-                          {formatBRL(item.unitPrice)} / {item.unitType === "KG" ? "kg" : "un"}
+                          {formatBRL(item.unitPrice)} / {item.unitType === "KG" ? "100g" : "un"}
                         </p>
                         <p className="mt-1 text-xs font-extrabold text-zinc-900">
                           {formatBRL(item.subtotal)}
@@ -196,9 +198,9 @@ export function CartDrawer({
                         >
                           <Minus className="h-3 w-3" />
                         </button>
-                        <span className="w-8 text-center text-xs font-bold text-zinc-800">
+                        <span className="w-10 text-center text-xs font-bold text-zinc-800">
                           {item.quantity}
-                          {item.unitType === "KG" ? "k" : ""}
+                          {item.unitType === "KG" ? "g" : " un"}
                         </span>
                         <button
                           type="button"
