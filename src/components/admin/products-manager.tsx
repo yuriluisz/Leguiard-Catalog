@@ -17,7 +17,10 @@ import {
   PackageX,
   X,
   Package,
-  Star
+  Star,
+  ChevronDown,
+  FolderPlus,
+  Loader2
 } from "lucide-react";
 
 import { fetchJson } from "@/lib/http";
@@ -80,6 +83,8 @@ const emptyForm: ProductForm = {
 export function ProductsManager() {
   const formTopRef = useRef<HTMLDivElement | null>(null);
   const nameInputRef = useRef<HTMLInputElement | null>(null);
+  const categoryDropdownRef = useRef<HTMLDivElement | null>(null);
+  const categorySearchInputRef = useRef<HTMLInputElement | null>(null);
 
   const [categories, setCategories] = useState<Category[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
@@ -90,6 +95,78 @@ export function ProductsManager() {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [message, setMessage] = useState<{ text: string; type: "success" | "error" } | null>(null);
   const [saving, setSaving] = useState(false);
+
+  // Category Combobox & Quick Create State
+  const [isCategoryDropdownOpen, setIsCategoryDropdownOpen] = useState(false);
+  const [categorySearch, setCategorySearch] = useState("");
+  const [creatingCategory, setCreatingCategory] = useState(false);
+  const [categoryToConfirm, setCategoryToConfirm] = useState<string | null>(null);
+
+  const selectedCategoryObj = useMemo(() => {
+    return categories.find((c) => c.id === form.categoryId) || null;
+  }, [categories, form.categoryId]);
+
+  const filteredCategories = useMemo(() => {
+    const q = categorySearch.trim().toLowerCase();
+    if (!q) return categories;
+    return categories.filter((c) => c.name.toLowerCase().includes(q));
+  }, [categories, categorySearch]);
+
+  const hasExactCategoryMatch = useMemo(() => {
+    const q = categorySearch.trim().toLowerCase();
+    if (!q) return false;
+    return categories.some((c) => c.name.trim().toLowerCase() === q);
+  }, [categories, categorySearch]);
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (
+        categoryDropdownRef.current &&
+        !categoryDropdownRef.current.contains(e.target as Node)
+      ) {
+        setIsCategoryDropdownOpen(false);
+      }
+    }
+
+    if (isCategoryDropdownOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [isCategoryDropdownOpen]);
+
+  async function handleConfirmCreateCategory(name: string) {
+    const trimmed = name.trim();
+    if (!trimmed || trimmed.length < 2) {
+      setMessage({ text: "O nome da categoria deve ter pelo menos 2 caracteres.", type: "error" });
+      setCategoryToConfirm(null);
+      return;
+    }
+
+    setCreatingCategory(true);
+    try {
+      const created = await fetchJson<Category>("/api/categories", {
+        method: "POST",
+        json: { name: trimmed }
+      });
+
+      setCategories((prev) => [...prev, created]);
+      setForm((prev) => ({ ...prev, categoryId: created.id }));
+      setCategoryToConfirm(null);
+      setIsCategoryDropdownOpen(false);
+      setCategorySearch("");
+      setMessage({
+        text: `Categoria "${created.name}" criada e selecionada com sucesso!`,
+        type: "success"
+      });
+    } catch (err) {
+      setMessage({
+        text: err instanceof Error ? err.message : "Falha ao criar categoria",
+        type: "error"
+      });
+    } finally {
+      setCreatingCategory(false);
+    }
+  }
 
   const filteredProducts = useMemo(() => {
     const normalized = search.trim().toLowerCase();
@@ -170,6 +247,12 @@ export function ProductsManager() {
     event.preventDefault();
     setSaving(true);
     setMessage(null);
+
+    if (!form.categoryId) {
+      setMessage({ text: "Por favor, selecione ou crie uma categoria para o produto.", type: "error" });
+      setSaving(false);
+      return;
+    }
 
     try {
       if (editingId) {
@@ -332,20 +415,112 @@ export function ProductsManager() {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             <div>
-              <label className="block text-xs font-bold text-zinc-700 mb-1">Categoria *</label>
-              <select
-                required
-                value={form.categoryId}
-                onChange={(e) => setForm((prev) => ({ ...prev, categoryId: e.target.value }))}
-                className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-xs font-semibold focus:border-blue-600 focus:outline-none"
-              >
-                <option value="">Selecione a categoria</option>
-                {categories.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                  </option>
-                ))}
-              </select>
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-xs font-bold text-zinc-700">Categoria *</label>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCategoryToConfirm("");
+                  }}
+                  className="inline-flex items-center gap-1 text-[11px] font-bold text-blue-600 hover:text-blue-700 transition active:scale-95"
+                >
+                  <Plus className="h-3 w-3" />
+                  <span>Nova Categoria</span>
+                </button>
+              </div>
+
+              {/* Custom Searchable Category Combobox */}
+              <div className="relative" ref={categoryDropdownRef}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsCategoryDropdownOpen((prev) => !prev);
+                    setTimeout(() => categorySearchInputRef.current?.focus(), 50);
+                  }}
+                  className={`w-full flex items-center justify-between rounded-xl border bg-white px-3 py-2 text-xs font-semibold text-left transition ${
+                    isCategoryDropdownOpen
+                      ? "border-blue-600 ring-2 ring-blue-500/20"
+                      : form.categoryId
+                      ? "border-zinc-200 text-zinc-900"
+                      : "border-zinc-200 text-zinc-400"
+                  }`}
+                >
+                  <span className="truncate">
+                    {selectedCategoryObj ? selectedCategoryObj.name : "Selecione a categoria..."}
+                  </span>
+                  <ChevronDown
+                    className={`h-4 w-4 text-zinc-400 transition-transform duration-200 shrink-0 ${
+                      isCategoryDropdownOpen ? "rotate-180 text-blue-600" : ""
+                    }`}
+                  />
+                </button>
+
+                {/* Dropdown Menu */}
+                {isCategoryDropdownOpen && (
+                  <div className="absolute left-0 top-full z-30 mt-1.5 w-full rounded-2xl border border-zinc-200/90 bg-white p-2.5 shadow-xl animate-in fade-in-0 zoom-in-95 duration-100">
+                    <div className="relative mb-2">
+                      <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-zinc-400" />
+                      <input
+                        ref={categorySearchInputRef}
+                        type="text"
+                        value={categorySearch}
+                        onChange={(e) => setCategorySearch(e.target.value)}
+                        placeholder="Pesquisar categoria..."
+                        className="w-full rounded-xl border border-zinc-200 pl-8 pr-3 py-1.5 text-xs text-zinc-800 placeholder-zinc-400 focus:border-blue-600 focus:outline-none"
+                      />
+                    </div>
+
+                    <div className="max-h-48 overflow-y-auto space-y-0.5 pr-0.5">
+                      {filteredCategories.length > 0 ? (
+                        filteredCategories.map((c) => {
+                          const isSelected = c.id === form.categoryId;
+                          return (
+                            <button
+                              key={c.id}
+                              type="button"
+                              onClick={() => {
+                                setForm((prev) => ({ ...prev, categoryId: c.id }));
+                                setIsCategoryDropdownOpen(false);
+                                setCategorySearch("");
+                              }}
+                              className={`w-full flex items-center justify-between rounded-lg px-2.5 py-2 text-xs transition ${
+                                isSelected
+                                  ? "bg-blue-50 text-blue-700 font-bold"
+                                  : "text-zinc-700 hover:bg-zinc-100 font-medium"
+                              }`}
+                            >
+                              <span className="truncate">{c.name}</span>
+                              {isSelected && <Check className="h-3.5 w-3.5 text-blue-600 shrink-0" />}
+                            </button>
+                          );
+                        })
+                      ) : (
+                        <div className="py-3 px-2 text-center text-xs text-zinc-500">
+                          Nenhuma categoria encontrada
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Quick Create Button when typing a non-existing category or no match */}
+                    {categorySearch.trim().length >= 2 && !hasExactCategoryMatch && (
+                      <div className="mt-2 pt-2 border-t border-zinc-100">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setCategoryToConfirm(categorySearch.trim());
+                          }}
+                          className="w-full flex items-center justify-center gap-1.5 rounded-xl bg-blue-50 px-2.5 py-2 text-xs font-bold text-blue-700 hover:bg-blue-100 transition active:scale-95"
+                        >
+                          <Plus className="h-3.5 w-3.5 shrink-0" />
+                          <span className="truncate">
+                            Criar categoria &quot;{categorySearch.trim()}&quot;
+                          </span>
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
 
             <div>
@@ -724,6 +899,74 @@ export function ProductsManager() {
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Category Creation Confirmation Modal */}
+      {categoryToConfirm !== null && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-in fade-in-0 duration-150">
+          <div className="w-full max-w-sm rounded-3xl bg-white p-6 shadow-2xl border border-zinc-200 animate-in zoom-in-95 duration-150">
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-50 text-blue-600 mb-4">
+              <FolderPlus className="h-6 w-6" />
+            </div>
+
+            <h4 className="text-base font-extrabold text-zinc-900">
+              Criar Nova Categoria
+            </h4>
+            <p className="text-xs text-zinc-500 mt-1">
+              Confirme ou ajuste o nome da categoria para adicioná-la ao catálogo:
+            </p>
+
+            <div className="mt-4">
+              <label className="block text-xs font-bold text-zinc-700 mb-1">
+                Nome da Categoria
+              </label>
+              <input
+                autoFocus
+                type="text"
+                value={categoryToConfirm}
+                onChange={(e) => setCategoryToConfirm(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && categoryToConfirm.trim().length >= 2 && !creatingCategory) {
+                    e.preventDefault();
+                    void handleConfirmCreateCategory(categoryToConfirm);
+                  }
+                }}
+                placeholder="Ex: Bebidas, Sobremesas, Combos..."
+                className="w-full rounded-xl border border-zinc-200 px-3 py-2 text-xs font-semibold focus:border-blue-600 focus:outline-none"
+              />
+              <p className="text-[10px] text-zinc-400 mt-1">Mínimo de 2 caracteres.</p>
+            </div>
+
+            <div className="mt-6 flex items-center justify-end gap-2">
+              <button
+                type="button"
+                disabled={creatingCategory}
+                onClick={() => setCategoryToConfirm(null)}
+                className="rounded-xl border border-zinc-200 px-4 py-2 text-xs font-bold text-zinc-600 hover:bg-zinc-100 transition"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                disabled={creatingCategory || categoryToConfirm.trim().length < 2}
+                onClick={() => void handleConfirmCreateCategory(categoryToConfirm)}
+                className="inline-flex items-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2 text-xs font-bold text-white shadow-sm hover:bg-blue-700 transition active:scale-95 disabled:opacity-50"
+              >
+                {creatingCategory ? (
+                  <>
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    <span>Criando...</span>
+                  </>
+                ) : (
+                  <>
+                    <Check className="h-3.5 w-3.5" />
+                    <span>Confirmar e Criar</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
