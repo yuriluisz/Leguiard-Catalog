@@ -26,6 +26,35 @@ export async function POST(request: Request) {
       return NextResponse.json({ message: "Forma de pagamento nao aceita pela loja" }, { status: 400 });
     }
 
+    // Salvar ou atualizar cliente como Lead da loja
+    try {
+      const cleanPhone = payload.customerPhone.trim();
+      const cleanName = payload.customerName.trim();
+      const existingLead = await prisma.lead.findFirst({
+        where: {
+          storeId: store.id,
+          phone: cleanPhone
+        }
+      });
+
+      if (existingLead) {
+        await prisma.lead.update({
+          where: { id: existingLead.id },
+          data: { name: cleanName }
+        });
+      } else {
+        await prisma.lead.create({
+          data: {
+            storeId: store.id,
+            name: cleanName,
+            phone: cleanPhone
+          }
+        });
+      }
+    } catch (leadError) {
+      console.error("Erro ao salvar lead no checkout:", leadError);
+    }
+
     const text = buildCheckoutText(
       {
         name: store.name,
