@@ -3,10 +3,8 @@
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import {
-  Boxes,
   Plus,
   Search,
-  Upload,
   Edit2,
   Trash2,
   Check,
