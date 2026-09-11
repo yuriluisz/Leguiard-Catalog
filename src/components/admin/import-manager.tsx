@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { FileSpreadsheet, Upload, Check, AlertCircle, Sparkles, ArrowRight, Table } from "lucide-react";
+import { FileSpreadsheet, Upload, Check, AlertCircle, Sparkles, ArrowRight, Table, Download } from "lucide-react";
 
 import { fetchJson } from "@/lib/http";
 
@@ -153,50 +153,72 @@ export function ImportManager() {
         </div>
       )}
 
-      {/* Upload Zone Card */}
+      {/* Upload & Export Card */}
       <div className="rounded-3xl border border-zinc-200/90 bg-white p-6 sm:p-8 shadow-sm space-y-6">
-        <div className="flex items-center gap-3 pb-3 border-b border-zinc-100">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
-            <FileSpreadsheet className="h-5 w-5" />
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-zinc-100">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-blue-50 text-blue-600">
+              <FileSpreadsheet className="h-5 w-5" />
+            </div>
+            <div>
+              <h2 className="text-sm font-extrabold text-zinc-900">
+                Catálogo em Planilha (Importar & Exportar)
+              </h2>
+              <p className="text-[11px] text-zinc-500">
+                Exporte todo o catálogo em CSV ou envie planilhas para cadastrar produtos
+              </p>
+            </div>
           </div>
-          <div>
-            <h2 className="text-sm font-extrabold text-zinc-900">
-              Importação em Massa Inteligente
-            </h2>
-            <p className="text-[11px] text-zinc-500">
-              Faça upload de planilhas CSV ou Excel (.xlsx) com mapeamento automático de colunas
-            </p>
-          </div>
+
+          <a
+            href="/api/products/export"
+            download
+            className="inline-flex items-center justify-center gap-2 rounded-2xl border border-zinc-200 bg-white px-4 py-2.5 text-xs font-bold text-zinc-800 shadow-sm transition hover:bg-zinc-50 hover:border-zinc-300 active:scale-95 shrink-0"
+          >
+            <Download className="h-4 w-4 text-zinc-500" />
+            <span>Exportar Catálogo (.CSV)</span>
+          </a>
         </div>
 
-        {/* Dropzone / Upload Button */}
+        {/* Dropzone / Upload & Export Actions */}
         <div className="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-zinc-200 bg-zinc-50/60 p-8 text-center transition hover:bg-zinc-50 hover:border-blue-400">
           <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white border border-zinc-200 text-blue-600 shadow-sm mb-3">
             <Upload className="h-6 w-6" />
           </div>
 
           <p className="text-xs font-bold text-zinc-800">
-            Arraste sua planilha ou clique no botão abaixo
+            Arraste sua planilha ou escolha uma das ações abaixo
           </p>
           <p className="text-[11px] text-zinc-500 mt-1">
-            Formatos suportados: .csv, .xlsx, .xls
+            Formatos suportados para importação: .csv, .xlsx, .xls
           </p>
 
-          <label className="mt-4 inline-flex cursor-pointer items-center gap-2 rounded-2xl bg-zinc-900 px-5 py-2.5 text-xs font-bold text-white shadow-md transition hover:bg-zinc-800 active:scale-95">
-            <Sparkles className="h-4 w-4" />
-            <span>{loading ? "Processando arquivo..." : "Selecionar Arquivo"}</span>
-            <input
-              type="file"
-              accept=".csv,.xls,.xlsx"
-              className="hidden"
-              disabled={loading}
-              onChange={(e) => {
-                const file = e.target.files?.[0];
-                if (!file) return;
-                void onPreview(file);
-              }}
-            />
-          </label>
+          <div className="mt-5 flex flex-wrap items-center justify-center gap-3">
+            <label className="inline-flex cursor-pointer items-center gap-2 rounded-2xl bg-zinc-900 px-5 py-2.5 text-xs font-bold text-white shadow-md transition hover:bg-zinc-800 active:scale-95">
+              <Sparkles className="h-4 w-4" />
+              <span>{loading ? "Processando arquivo..." : "Importar Planilha"}</span>
+              <input
+                type="file"
+                accept=".csv,.xls,.xlsx"
+                className="hidden"
+                disabled={loading}
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  void onPreview(file);
+                }}
+              />
+            </label>
+
+            <a
+              href="/api/products/export"
+              download
+              className="inline-flex items-center gap-2 rounded-2xl border border-zinc-300 bg-white px-5 py-2.5 text-xs font-bold text-zinc-700 shadow-sm transition hover:bg-zinc-100 active:scale-95"
+            >
+              <Download className="h-4 w-4 text-zinc-500" />
+              <span>Exportar Catálogo</span>
+            </a>
+          </div>
         </div>
 
         {/* Preview & Mapping Section */}

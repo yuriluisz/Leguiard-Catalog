@@ -27,9 +27,9 @@ const tabs = [
   },
   {
     key: "import" as TabKey,
-    label: "Importação em Massa",
+    label: "Importar / Exportar",
     icon: FileSpreadsheet,
-    description: "Upload de planilha CSV/Excel"
+    description: "Exportar ou importar planilha CSV/Excel"
   },
   {
     key: "batch" as TabKey,
