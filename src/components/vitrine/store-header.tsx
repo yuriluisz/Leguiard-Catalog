@@ -88,6 +88,7 @@ export function StoreHeader({
                     src={store.logoUrl}
                     alt={store.name}
                     fill
+                    unoptimized
                     className="object-cover"
                     sizes="(max-width: 640px) 56px, 64px"
                     priority
