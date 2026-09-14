@@ -5,6 +5,7 @@ import { serializeProduct } from "@/lib/serialize";
 import { resolveAdminStoreContext } from "@/lib/tenant";
 import { productSchema } from "@/lib/validators";
 import { getOrSetCache, invalidateStoreCache } from "@/lib/cache";
+import { searchProducts } from "@/lib/search";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -38,14 +39,6 @@ export async function GET(request: Request) {
       const products = await prisma.product.findMany({
         where: {
           storeId,
-          ...(search
-            ? {
-                name: {
-                  contains: search,
-                  mode: "insensitive"
-                }
-              }
-            : {}),
           ...(categoryId ? { categoryId } : {}),
           isActive: true,
           isOutOfStock: false
@@ -56,7 +49,9 @@ export async function GET(request: Request) {
         orderBy: [{ isPinned: "desc" } as any, { category: { displayOrder: "asc" } }, { name: "asc" }]
       });
 
-      return products.map(serializeProduct);
+      const serialized = products.map(serializeProduct);
+      if (!search) return serialized;
+      return searchProducts(serialized, search);
     });
 
     return NextResponse.json(serializedProducts);
@@ -72,14 +67,6 @@ export async function GET(request: Request) {
   const products = await prisma.product.findMany({
     where: {
       storeId,
-      ...(search
-        ? {
-            name: {
-              contains: search,
-              mode: "insensitive"
-            }
-          }
-        : {}),
       ...(categoryId ? { categoryId } : {}),
       ...(adminMode
         ? {}
@@ -94,7 +81,11 @@ export async function GET(request: Request) {
     orderBy: [{ isPinned: "desc" } as any, { category: { displayOrder: "asc" } }, { name: "asc" }]
   });
 
-  return NextResponse.json(products.map(serializeProduct));
+  const serialized = products.map(serializeProduct);
+  if (!search) {
+    return NextResponse.json(serialized);
+  }
+  return NextResponse.json(searchProducts(serialized, search));
 }
 
 export async function POST(request: Request) {

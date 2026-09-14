@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Weight, Search, Check, AlertCircle, Sparkles, Filter, CheckSquare } from "lucide-react";
 
 import { fetchJson } from "@/lib/http";
+import { searchProducts } from "@/lib/search";
 
 type Category = {
   id: string;
@@ -38,13 +39,6 @@ export function BatchEditor() {
   const [message, setMessage] = useState<{ text: string; type: "success" | "error" } | null>(null);
   const [saving, setSaving] = useState(false);
 
-  function normalizeText(value: string): string {
-    return value
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "")
-      .toLowerCase();
-  }
-
   async function loadData() {
     const [productsData, categoriesData] = await Promise.all([
       fetchJson<Product[]>("/api/products?admin=1"),
@@ -62,16 +56,7 @@ export function BatchEditor() {
   }, []);
 
   const filteredProducts = useMemo(() => {
-    const normalizedSearch = normalizeText(search.trim());
-
-    return products.filter((product) => {
-      const productName = normalizeText(product.name);
-      const categoryName = normalizeText(product.category?.name ?? "");
-
-      const matchesSearch =
-        normalizedSearch.length === 0 ||
-        productName.includes(normalizedSearch) ||
-        categoryName.includes(normalizedSearch);
+    const preFiltered = products.filter((product) => {
       const matchesCategory = !filterCategoryId || product.categoryId === filterCategoryId;
       const matchesUnit = filterUnitType === "ALL" || product.unitType === filterUnitType;
       const matchesActive =
@@ -83,8 +68,13 @@ export function BatchEditor() {
         (filterStock === "AVAILABLE" && !product.isOutOfStock) ||
         (filterStock === "OUT" && product.isOutOfStock);
 
-      return matchesSearch && matchesCategory && matchesUnit && matchesActive && matchesStock;
+      return matchesCategory && matchesUnit && matchesActive && matchesStock;
     });
+
+    return searchProducts(preFiltered, search, (p) => ({
+      name: p.name,
+      categoryName: p.category?.name
+    }));
   }, [products, search, filterCategoryId, filterUnitType, filterActive, filterStock]);
 
   const filteredIds = useMemo(() => filteredProducts.map((product) => product.id), [filteredProducts]);

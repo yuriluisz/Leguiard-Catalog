@@ -25,6 +25,7 @@ import { fetchJson } from "@/lib/http";
 import { formatBRL } from "@/lib/format";
 import { getUnitBadge } from "@/lib/pricing";
 import { compressImage } from "@/lib/image-compress";
+import { searchProducts } from "@/lib/search";
 
 type Category = {
   id: string;
@@ -167,15 +168,17 @@ export function ProductsManager() {
   }
 
   const filteredProducts = useMemo(() => {
-    const normalized = search.trim().toLowerCase();
-    return products.filter((product) => {
-      const matchesSearch =
-        !normalized ||
-        product.name.toLowerCase().includes(normalized) ||
-        (product.description && product.description.toLowerCase().includes(normalized));
-      const matchesCat = selectedCategory === "all" || product.categoryId === selectedCategory;
-      return matchesSearch && matchesCat;
-    });
+    const categoryFiltered =
+      selectedCategory === "all"
+        ? products
+        : products.filter((p) => p.categoryId === selectedCategory);
+
+    return searchProducts(categoryFiltered, search, (p) => ({
+      name: p.name,
+      description: p.description,
+      categoryName: p.category?.name,
+      isPinned: p.isPinned
+    }));
   }, [products, search, selectedCategory]);
 
   async function loadData() {

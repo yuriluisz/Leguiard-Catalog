@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Search, ShoppingBag } from "lucide-react";
 
 import { fetchJson } from "@/lib/http";
+import { searchProducts } from "@/lib/search";
 import { useCartStore } from "@/stores/cart-store";
 import type { CartItem, CheckoutPayload, ProductRecord, StoreRecord } from "@/types";
 
@@ -119,24 +120,25 @@ export function CatalogExperience({
     return counts;
   }, [products]);
 
+  const categoryMap = useMemo(() => {
+    const map = new Map<string, string>();
+    categories.forEach((c) => map.set(c.id, c.name));
+    return map;
+  }, [categories]);
+
   const visibleProducts = useMemo(() => {
-    const filtered = products.filter((product) => {
-      const matchesSearch =
-        !search ||
-        product.name.toLowerCase().includes(search.toLowerCase()) ||
-        product.description?.toLowerCase().includes(search.toLowerCase());
+    const categoryFiltered =
+      activeCategory === "all"
+        ? products
+        : products.filter((p) => p.categoryId === activeCategory);
 
-      const matchesCategory = activeCategory === "all" || product.categoryId === activeCategory;
-
-      return matchesSearch && matchesCategory;
-    });
-
-    return filtered.sort((a, b) => {
-      const aPinned = a.isPinned ? 1 : 0;
-      const bPinned = b.isPinned ? 1 : 0;
-      return bPinned - aPinned;
-    });
-  }, [products, search, activeCategory]);
+    return searchProducts(categoryFiltered, search, (p) => ({
+      name: p.name,
+      description: p.description,
+      categoryName: categoryMap.get(p.categoryId),
+      isPinned: p.isPinned
+    }));
+  }, [products, search, activeCategory, categoryMap]);
 
   const handleQuantityChange = (id: string, value: string) => {
     setQuantities((prev) => ({
