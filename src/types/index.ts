@@ -19,6 +19,12 @@ export type StoreSettings = {
     youtubeUrl: string;
     siteUrl: string;
   };
+  seo?: {
+    title?: string;
+    description?: string;
+    ogImageUrl?: string;
+    keywords?: string;
+  };
 };
 
 export type StoreRecord = {

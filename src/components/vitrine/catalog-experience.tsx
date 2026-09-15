@@ -39,12 +39,14 @@ export function CatalogExperience({
   slug,
   initialStore,
   initialCategories,
-  initialProducts
+  initialProducts,
+  initialProductId
 }: {
   slug: string;
   initialStore: StoreRecord;
   initialCategories: Category[];
   initialProducts: ProductRecord[];
+  initialProductId?: string;
 }) {
   const [store] = useState<StoreRecord>(initialStore);
   const [categories] = useState<Category[]>(initialCategories);
@@ -58,7 +60,12 @@ export function CatalogExperience({
   const [cartOpen, setCartOpen] = useState(false);
   const [showLeadModal, setShowLeadModal] = useState(false);
   const [lastAddedId, setLastAddedId] = useState<string | null>(null);
-  const [detailProduct, setDetailProduct] = useState<ProductRecord | null>(null);
+  const [detailProduct, setDetailProduct] = useState<ProductRecord | null>(() => {
+    if (initialProductId) {
+      return initialProducts.find((p) => p.id === initialProductId) || null;
+    }
+    return null;
+  });
 
   const cartItems = useCartStore((state) => state.itemsByStore[slug] ?? EMPTY_CART);
   const addItem = useCartStore((state) => state.addItem);
@@ -348,6 +355,8 @@ export function CatalogExperience({
         isOpen={Boolean(detailProduct)}
         onClose={() => setDetailProduct(null)}
         onAddToCart={handleAddToCartFromModal}
+        slug={slug}
+        storeName={store.name}
       />
     </div>
   );

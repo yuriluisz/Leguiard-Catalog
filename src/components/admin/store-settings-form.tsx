@@ -17,7 +17,10 @@ import {
   AlertCircle,
   Sparkles,
   ArrowLeft,
-  ExternalLink
+  ExternalLink,
+  Globe,
+  Search,
+  MessageCircle
 } from "lucide-react";
 
 import { fetchJson } from "@/lib/http";
@@ -49,6 +52,12 @@ type StoreForm = {
       youtubeUrl: string;
       siteUrl: string;
     };
+    seo: {
+      title: string;
+      description: string;
+      ogImageUrl: string;
+      keywords: string;
+    };
   };
 };
 
@@ -75,6 +84,12 @@ const initialForm: StoreForm = {
       tiktokUrl: "",
       youtubeUrl: "",
       siteUrl: ""
+    },
+    seo: {
+      title: "",
+      description: "",
+      ogImageUrl: "",
+      keywords: ""
     }
   }
 };
@@ -90,6 +105,7 @@ export function StoreSettingsForm() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ text: string; type: "success" | "error" } | null>(null);
+  const [seoPreviewTab, setSeoPreviewTab] = useState<"google" | "whatsapp">("google");
 
   useEffect(() => {
     const loadStore = async () => {
@@ -118,6 +134,12 @@ export function StoreSettingsForm() {
               tiktokUrl: data.settings.social.tiktokUrl ?? "",
               youtubeUrl: data.settings.social.youtubeUrl ?? "",
               siteUrl: data.settings.social.siteUrl ?? ""
+            },
+            seo: {
+              title: data.settings.seo?.title ?? "",
+              description: data.settings.seo?.description ?? "",
+              ogImageUrl: data.settings.seo?.ogImageUrl ?? "",
+              keywords: data.settings.seo?.keywords ?? ""
             }
           }
         });
@@ -165,6 +187,12 @@ export function StoreSettingsForm() {
           tiktokUrl: normalizeWebUrl(currentForm.settings.social.tiktokUrl),
           youtubeUrl: normalizeWebUrl(currentForm.settings.social.youtubeUrl),
           siteUrl: normalizeWebUrl(currentForm.settings.social.siteUrl)
+        },
+        seo: {
+          title: currentForm.settings.seo.title.trim(),
+          description: currentForm.settings.seo.description.trim(),
+          ogImageUrl: currentForm.settings.seo.ogImageUrl.trim(),
+          keywords: currentForm.settings.seo.keywords.trim()
         }
       }
     };
@@ -194,6 +222,32 @@ export function StoreSettingsForm() {
       setMessage({ text: "Logo enviada e salva com sucesso!", type: "success" });
     } catch {
       throw new Error("Falha ao processar e salvar a imagem da logo");
+    }
+  }
+
+  async function onUploadOgImage(file: File) {
+    if (file.size > 5 * 1024 * 1024) {
+      throw new Error("A imagem deve ter no máximo 5MB");
+    }
+
+    try {
+      const dataUri = await compressImage(file, 1200, 0.85);
+      const nextForm: StoreForm = {
+        ...form,
+        settings: {
+          ...form.settings,
+          seo: {
+            ...form.settings.seo,
+            ogImageUrl: dataUri
+          }
+        }
+      };
+
+      setForm(nextForm);
+      await saveStore(nextForm);
+      setMessage({ text: "Banner de compartilhamento salvo com sucesso!", type: "success" });
+    } catch {
+      throw new Error("Falha ao processar e salvar a imagem de compartilhamento");
     }
   }
 
@@ -597,6 +651,291 @@ export function StoreSettingsForm() {
                   placeholder="www.sualoja.com.br"
                   className="w-full rounded-xl border border-zinc-200 px-3.5 py-2.5 text-xs text-zinc-900 focus:border-blue-600 focus:outline-none"
                 />
+              </div>
+            </div>
+          </div>
+
+          {/* Card 4: SEO & Compartilhamento (Google & WhatsApp) */}
+          <div className="rounded-3xl border border-zinc-200/90 bg-white p-5 sm:p-6 shadow-sm space-y-5">
+            <div className="flex items-center gap-3 pb-3 border-b border-zinc-100">
+              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
+                <Globe className="h-5 w-5" />
+              </div>
+              <div>
+                <h2 className="text-sm font-extrabold text-zinc-900">SEO & Compartilhamento (Google & WhatsApp)</h2>
+                <p className="text-[11px] text-zinc-500">
+                  Defina o título, descrição e imagem que aparecem nas buscas e ao enviar o link nas redes sociais
+                </p>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              {/* Meta Title */}
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-xs font-bold text-zinc-700">
+                    Título no Google & Aba do Navegador (Meta Title)
+                  </label>
+                  <span
+                    className={`text-[11px] ${
+                      form.settings.seo.title.length > 60
+                        ? "text-amber-600 font-bold"
+                        : "text-zinc-400"
+                    }`}
+                  >
+                    {form.settings.seo.title.length}/60 recomendados
+                  </span>
+                </div>
+                <input
+                  value={form.settings.seo.title}
+                  onChange={(e) =>
+                    setForm((prev) => ({
+                      ...prev,
+                      settings: {
+                        ...prev.settings,
+                        seo: { ...prev.settings.seo, title: e.target.value }
+                      }
+                    }))
+                  }
+                  placeholder={`Padrão: ${form.name || "Nome da Loja"} | Catálogo Online & Pedidos WhatsApp`}
+                  className="w-full rounded-xl border border-zinc-200 px-3.5 py-2.5 text-xs text-zinc-900 focus:border-blue-600 focus:outline-none"
+                />
+                <p className="text-[10px] text-zinc-400 mt-1">
+                  Se deixar em branco, usaremos automaticamente o nome da sua loja com subtítulo otimizado.
+                </p>
+              </div>
+
+              {/* Meta Description */}
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-xs font-bold text-zinc-700">
+                    Descrição nas Buscas do Google (Meta Description)
+                  </label>
+                  <span
+                    className={`text-[11px] ${
+                      form.settings.seo.description.length > 160
+                        ? "text-amber-600 font-bold"
+                        : "text-zinc-400"
+                    }`}
+                  >
+                    {form.settings.seo.description.length}/160 recomendados
+                  </span>
+                </div>
+                <textarea
+                  rows={2}
+                  value={form.settings.seo.description}
+                  onChange={(e) =>
+                    setForm((prev) => ({
+                      ...prev,
+                      settings: {
+                        ...prev.settings,
+                        seo: { ...prev.settings.seo, description: e.target.value }
+                      }
+                    }))
+                  }
+                  placeholder={`Padrão: Confira os produtos e faça seu pedido direto pelo WhatsApp com a ${form.name || "loja"}...`}
+                  className="w-full rounded-xl border border-zinc-200 px-3.5 py-2.5 text-xs text-zinc-900 focus:border-blue-600 focus:outline-none"
+                />
+                <p className="text-[10px] text-zinc-400 mt-1">
+                  Resumo persuasivo que atrai clientes ao pesquisarem no Google ou verem prévia no WhatsApp.
+                </p>
+              </div>
+
+              {/* Keywords */}
+              <div>
+                <label className="block text-xs font-bold text-zinc-700 mb-1">
+                  Palavras-chave (Keywords)
+                </label>
+                <input
+                  value={form.settings.seo.keywords}
+                  onChange={(e) =>
+                    setForm((prev) => ({
+                      ...prev,
+                      settings: {
+                        ...prev.settings,
+                        seo: { ...prev.settings.seo, keywords: e.target.value }
+                      }
+                    }))
+                  }
+                  placeholder="Ex: produtos naturais, a granel, chás medicinais, farinhas funcionais, castanhas"
+                  className="w-full rounded-xl border border-zinc-200 px-3.5 py-2.5 text-xs text-zinc-900 focus:border-blue-600 focus:outline-none"
+                />
+                <p className="text-[10px] text-zinc-400 mt-1">
+                  Separe os termos principais por vírgula para ajudar mecanismos de busca locais.
+                </p>
+              </div>
+
+              {/* OG Image / Social Banner */}
+              <div className="pt-2 border-t border-zinc-100">
+                <label className="block text-xs font-bold text-zinc-700 mb-1">
+                  Banner de Compartilhamento (WhatsApp & Redes Sociais)
+                </label>
+                <p className="text-[11px] text-zinc-500 mb-3">
+                  Imagem horizontal em destaque (proporção 1.91:1, recomendada 1200x630px). Se não enviar, será usado o logo da loja.
+                </p>
+
+                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+                  <div className="relative aspect-video w-44 shrink-0 overflow-hidden rounded-xl border border-zinc-200 bg-zinc-50">
+                    {form.settings.seo.ogImageUrl || form.logoUrl ? (
+                      <Image
+                        src={form.settings.seo.ogImageUrl || form.logoUrl}
+                        alt="Preview de compartilhamento"
+                        fill
+                        className="object-cover"
+                        unoptimized
+                      />
+                    ) : (
+                      <div className="flex h-full w-full flex-col items-center justify-center text-zinc-400 p-2 text-center">
+                        <Share2 className="h-6 w-6 stroke-[1.5] mb-1" />
+                        <span className="text-[10px]">Sem banner</span>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-xl border border-zinc-200 bg-white px-3 py-2 text-xs font-bold text-zinc-700 shadow-xs hover:bg-zinc-50 transition active:scale-95">
+                        <Upload className="h-3.5 w-3.5 text-zinc-500" />
+                        <span>{form.settings.seo.ogImageUrl ? "Alterar Banner" : "Enviar Banner"}</span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={async (e) => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                              await onUploadOgImage(file);
+                            }
+                          }}
+                        />
+                      </label>
+
+                      {form.settings.seo.ogImageUrl && (
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            const nextForm: StoreForm = {
+                              ...form,
+                              settings: {
+                                ...form.settings,
+                                seo: { ...form.settings.seo, ogImageUrl: "" }
+                              }
+                            };
+                            setForm(nextForm);
+                            await saveStore(nextForm);
+                            setMessage({ text: "Banner de compartilhamento removido.", type: "success" });
+                          }}
+                          className="inline-flex items-center gap-1 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs font-bold text-red-600 hover:bg-red-100 transition"
+                        >
+                          Remover
+                        </button>
+                      )}
+                    </div>
+                    <p className="text-[10px] text-zinc-400">
+                      Otimizado e comprimido automaticamente para carregamento ultrarrápido.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Interactive Preview Simulator */}
+              <div className="pt-3 border-t border-zinc-100">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs font-extrabold text-zinc-800 flex items-center gap-1.5">
+                    <Sparkles className="h-3.5 w-3.5 text-amber-500" />
+                    Simulador de Visualização
+                  </span>
+
+                  <div className="flex items-center rounded-xl bg-zinc-100 p-0.5 border border-zinc-200/80">
+                    <button
+                      type="button"
+                      onClick={() => setSeoPreviewTab("google")}
+                      className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold transition ${
+                        seoPreviewTab === "google"
+                          ? "bg-white text-zinc-900 shadow-xs"
+                          : "text-zinc-500 hover:text-zinc-700"
+                      }`}
+                    >
+                      <Search className="h-3 w-3" />
+                      <span>Google</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setSeoPreviewTab("whatsapp")}
+                      className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold transition ${
+                        seoPreviewTab === "whatsapp"
+                          ? "bg-white text-emerald-700 shadow-xs"
+                          : "text-zinc-500 hover:text-zinc-700"
+                      }`}
+                    >
+                      <MessageCircle className="h-3 w-3" />
+                      <span>WhatsApp</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Google Snippet Simulation */}
+                {seoPreviewTab === "google" && (
+                  <div className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-xs space-y-1 animate-in fade-in duration-200">
+                    <div className="flex items-center gap-2">
+                      <div className="flex h-5 w-5 items-center justify-center rounded-full bg-zinc-100 text-[10px] font-black text-zinc-700">
+                        {form.name ? form.name.charAt(0).toUpperCase() : "L"}
+                      </div>
+                      <div className="min-w-0 flex-1 leading-tight">
+                        <p className="text-[11px] text-zinc-700 font-semibold truncate">
+                          {form.name || "Minha Loja"}
+                        </p>
+                        <p className="text-[10px] text-zinc-400 truncate">
+                          https://catalogo.com/{form.slug || "minha-loja"}
+                        </p>
+                      </div>
+                    </div>
+                    <h3 className="text-sm font-bold text-blue-700 hover:underline cursor-pointer line-clamp-1 pt-1">
+                      {form.settings.seo.title || `${form.name || "Nome da Loja"} | Catálogo Online & Pedidos WhatsApp`}
+                    </h3>
+                    <p className="text-xs text-zinc-600 line-clamp-2 leading-relaxed">
+                      {form.settings.seo.description ||
+                        `Confira os produtos e faça seu pedido direto pelo WhatsApp com a ${form.name || "sua loja"}.${
+                          form.address ? ` Endereço: ${form.address}.` : ""
+                        }`}
+                    </p>
+                  </div>
+                )}
+
+                {/* WhatsApp Chat Card Simulation */}
+                {seoPreviewTab === "whatsapp" && (
+                  <div className="rounded-2xl border border-emerald-200 bg-[#EFEAE2] p-4 shadow-xs animate-in fade-in duration-200">
+                    <div className="max-w-xs rounded-2xl bg-white p-2 shadow-sm space-y-2 border border-black/5">
+                      <div className="relative aspect-video w-full overflow-hidden rounded-xl bg-zinc-100">
+                        {form.settings.seo.ogImageUrl || form.logoUrl ? (
+                          <Image
+                            src={form.settings.seo.ogImageUrl || form.logoUrl}
+                            alt="Card WhatsApp"
+                            fill
+                            className="object-cover"
+                            unoptimized
+                          />
+                        ) : (
+                          <div className="flex h-full w-full items-center justify-center text-zinc-400 text-[11px]">
+                            Banner da loja
+                          </div>
+                        )}
+                      </div>
+                      <div className="px-1 pb-1 space-y-0.5">
+                        <h4 className="text-xs font-bold text-zinc-900 line-clamp-1">
+                          {form.settings.seo.title || `${form.name || "Nome da Loja"} | Catálogo Online & Pedidos WhatsApp`}
+                        </h4>
+                        <p className="text-[11px] text-zinc-500 line-clamp-2 leading-snug">
+                          {form.settings.seo.description ||
+                            `Confira os produtos e faça seu pedido direto pelo WhatsApp com a ${form.name || "sua loja"}.`}
+                        </p>
+                        <p className="text-[10px] text-zinc-400 uppercase tracking-wide pt-0.5">
+                          catalogo.com/{form.slug || "loja"}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </div>

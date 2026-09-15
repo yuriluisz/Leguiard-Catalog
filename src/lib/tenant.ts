@@ -34,6 +34,13 @@ const DEFAULT_SOCIAL: StoreSettings["social"] = {
   siteUrl: ""
 };
 
+const DEFAULT_SEO: StoreSettings["seo"] = {
+  title: "",
+  description: "",
+  ogImageUrl: "",
+  keywords: ""
+};
+
 export function isSystemAdminEmail(email: string | null | undefined): boolean {
   const configuredEmail = process.env.ADMIN_EMAIL?.trim().toLowerCase();
   if (!configuredEmail || !email) {
@@ -61,6 +68,12 @@ export type StoreSettings = {
     youtubeUrl: string;
     siteUrl: string;
   };
+  seo: {
+    title: string;
+    description: string;
+    ogImageUrl: string;
+    keywords: string;
+  };
 };
 
 function asRecord(value: unknown): Record<string, unknown> {
@@ -76,6 +89,8 @@ export function normalizeStoreSettings(input: unknown): StoreSettings {
   const theme = asRecord(root.theme);
   const checkout = asRecord(root.checkout);
   const social = asRecord(root.social);
+
+  const seo = asRecord(root.seo);
 
   const resolvedTheme = {
     primaryColor: String(theme.primaryColor || DEFAULT_THEME.primaryColor),
@@ -107,6 +122,12 @@ export function normalizeStoreSettings(input: unknown): StoreSettings {
       tiktokUrl: String(social.tiktokUrl || social.tiktok || DEFAULT_SOCIAL.tiktokUrl),
       youtubeUrl: String(social.youtubeUrl || social.youtube || DEFAULT_SOCIAL.youtubeUrl),
       siteUrl: String(social.siteUrl || social.site || DEFAULT_SOCIAL.siteUrl)
+    },
+    seo: {
+      title: String(seo.title || DEFAULT_SEO.title).trim(),
+      description: String(seo.description || DEFAULT_SEO.description).trim(),
+      ogImageUrl: String(seo.ogImageUrl || DEFAULT_SEO.ogImageUrl).trim(),
+      keywords: String(seo.keywords || DEFAULT_SEO.keywords).trim()
     }
   };
 }

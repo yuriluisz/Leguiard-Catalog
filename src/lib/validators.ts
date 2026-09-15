@@ -54,6 +54,19 @@ export const storeSettingsSchema = z.object({
       tiktokUrl: "",
       youtubeUrl: "",
       siteUrl: ""
+    }),
+  seo: z
+    .object({
+      title: z.string().trim().default(""),
+      description: z.string().trim().default(""),
+      ogImageUrl: z.string().trim().default(""),
+      keywords: z.string().trim().default("")
+    })
+    .default({
+      title: "",
+      description: "",
+      ogImageUrl: "",
+      keywords: ""
     })
 });
 
@@ -83,6 +96,12 @@ export const storeSchema = z.object({
       tiktokUrl: "",
       youtubeUrl: "",
       siteUrl: ""
+    },
+    seo: {
+      title: "",
+      description: "",
+      ogImageUrl: "",
+      keywords: ""
     }
   })
 });

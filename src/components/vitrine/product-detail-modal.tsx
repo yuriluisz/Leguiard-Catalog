@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Image from "next/image";
-import { X, Plus, Minus, ShoppingBag, Check, Package, Star } from "lucide-react";
+import { X, Plus, Minus, ShoppingBag, Check, Package, Star, Share2 } from "lucide-react";
 
 import { formatBRL } from "@/lib/format";
 import { calculateSubtotal, getUnitBadge } from "@/lib/pricing";
@@ -13,13 +13,17 @@ type ProductDetailModalProps = {
   isOpen: boolean;
   onClose: () => void;
   onAddToCart: (product: ProductRecord, quantity: number) => void;
+  slug?: string;
+  storeName?: string;
 };
 
 export function ProductDetailModal({
   product,
   isOpen,
   onClose,
-  onAddToCart
+  onAddToCart,
+  slug,
+  storeName
 }: ProductDetailModalProps) {
   const isKG = product?.unitType === "KG";
   const step = isKG ? 50 : 1;
@@ -31,8 +35,37 @@ export function ProductDetailModal({
 
   const [quantity, setQuantity] = useState<number>(minQty);
   const [isAdded, setIsAdded] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   const isAtMax = maxQty !== null && quantity >= maxQty;
+
+  const handleShare = async () => {
+    if (!product || !slug) return;
+    const origin = typeof window !== "undefined" ? window.location.origin : "";
+    const shareUrl = `${origin}/${slug}?p=${product.id}`;
+    const shareText = `Confira ${product.name} na loja ${storeName || ""}`;
+
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: `${product.name} | ${storeName || "Catálogo"}`,
+          text: shareText,
+          url: shareUrl
+        });
+        return;
+      } catch {
+        // User cancelled share dialog
+      }
+    }
+
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // Fallback
+    }
+  };
 
   // Sincroniza quantidade inicial sempre que abrir com um produto novo
   useEffect(() => {
@@ -43,6 +76,7 @@ export function ProductDetailModal({
       const cappedInitial = maxQty !== null ? Math.min(initial, maxQty) : initial;
       setQuantity(cappedInitial);
       setIsAdded(false);
+      setCopied(false);
     }
   }, [product, isKG, maxQty]);
 
@@ -95,15 +129,34 @@ export function ProductDetailModal({
           <div className="h-1.5 w-12 rounded-full bg-zinc-300" />
         </div>
 
-        {/* Close Button */}
-        <button
-          type="button"
-          onClick={onClose}
-          className="absolute right-3.5 top-3.5 z-20 flex h-8 w-8 items-center justify-center rounded-full bg-black/40 text-white backdrop-blur-md transition hover:bg-black/60"
-          aria-label="Fechar detalhes"
-        >
-          <X className="h-4 w-4" />
-        </button>
+        {/* Top Actions: Share & Close */}
+        <div className="absolute right-3.5 top-3.5 z-20 flex items-center gap-2">
+          {slug && (
+            <button
+              type="button"
+              onClick={handleShare}
+              className={`flex h-8 items-center gap-1.5 rounded-full px-2.5 text-xs font-bold transition shadow-xs backdrop-blur-md active:scale-95 ${
+                copied
+                  ? "bg-emerald-600 text-white"
+                  : "bg-black/50 text-white hover:bg-black/70"
+              }`}
+              title="Compartilhar produto"
+              aria-label="Compartilhar produto"
+            >
+              {copied ? <Check className="h-3.5 w-3.5 stroke-[3]" /> : <Share2 className="h-3.5 w-3.5" />}
+              <span className="text-[11px] font-bold">{copied ? "Link Copiado!" : "Compartilhar"}</span>
+            </button>
+          )}
+
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex h-8 w-8 items-center justify-center rounded-full bg-black/50 text-white backdrop-blur-md transition hover:bg-black/70 active:scale-90"
+            aria-label="Fechar detalhes"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
 
         {/* Content Body (Scrollable) */}
         <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 sm:space-y-0 sm:grid sm:grid-cols-2 sm:gap-6">
