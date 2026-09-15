@@ -231,7 +231,7 @@ export function StoreSettingsForm() {
     }
 
     try {
-      const dataUri = await compressImage(file, 1200, 0.85);
+      const dataUri = await compressImage(file, 1200, 0.85, "image/jpeg");
       const nextForm: StoreForm = {
         ...form,
         settings: {

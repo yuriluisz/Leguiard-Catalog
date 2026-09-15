@@ -5,6 +5,7 @@ import { CatalogExperience } from "@/components/vitrine/catalog-experience";
 import { prisma } from "@/lib/prisma";
 import { serializeProduct } from "@/lib/serialize";
 import { normalizeStoreSettings } from "@/lib/tenant";
+import { getRequestBaseUrl } from "@/lib/url";
 
 export const revalidate = 60; // ISR revalidation every 60 seconds
 
@@ -47,6 +48,7 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
     const product = await prisma.product.findFirst({
       where: { id: productId, storeId: store.id },
       select: {
+        id: true,
         name: true,
         description: true,
         price: true,
@@ -55,6 +57,17 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
       }
     });
 
+    const baseUrl = getRequestBaseUrl();
+
+    // Helper para garantir URL pública acessível para WhatsApp e redes sociais (nunca Data URI)
+    function resolvePublicImageUrl(imageSource: string | null | undefined, param?: string): string {
+      if (!imageSource) return "";
+      if (imageSource.startsWith("http://") || imageSource.startsWith("https://")) {
+        return imageSource;
+      }
+      return `${baseUrl}/api/og?slug=${slug}${param ? `&p=${encodeURIComponent(param)}` : ""}`;
+    }
+
     if (product) {
       const priceText = `R$ ${product.price.toFixed(2).replace(".", ",")}${product.unitType === "KG" ? "/kg" : ""}`;
       const productTitle = `${product.name} | ${store.name}`;
@@ -62,13 +75,13 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
         ? `${product.description.slice(0, 150)}... ${priceText} na ${store.name}. Peça já!`
         : `${product.name} por ${priceText} na ${store.name}. Confira e faça seu pedido direto pelo WhatsApp!`;
 
-      const productImages = product.imageUrl
-        ? [{ url: product.imageUrl, width: 800, height: 800, alt: product.name }]
-        : store.logoUrl
-        ? [{ url: store.logoUrl, width: 800, height: 800, alt: store.name }]
+      const productImageUrl = resolvePublicImageUrl(product.imageUrl || store.logoUrl, product.id);
+      const productImages = productImageUrl
+        ? [{ url: productImageUrl, width: 800, height: 800, alt: product.name }]
         : [];
 
       return {
+        metadataBase: new URL(baseUrl),
         title: productTitle,
         description: productDesc,
         openGraph: {
@@ -76,19 +89,21 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
           description: productDesc,
           type: "website",
           siteName: store.name,
+          url: `${baseUrl}/${slug}?p=${product.id}`,
           images: productImages
         },
         twitter: {
           card: "summary_large_image",
           title: productTitle,
           description: productDesc,
-          images: product.imageUrl ? [product.imageUrl] : store.logoUrl ? [store.logoUrl] : []
+          images: productImageUrl ? [productImageUrl] : []
         }
       };
     }
   }
 
   // 2. Cenário: Página Principal da Loja
+  const baseUrl = getRequestBaseUrl();
   const title =
     settings.seo.title || `${store.name} | Catálogo Online & Pedidos WhatsApp`;
 
@@ -98,7 +113,13 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
       store.address ? ` Endereço: ${store.address}.` : ""
     }`;
 
-  const shareImageUrl = settings.seo.ogImageUrl || store.logoUrl;
+  const rawImage = settings.seo.ogImageUrl || store.logoUrl;
+  const shareImageUrl = rawImage
+    ? (rawImage.startsWith("http://") || rawImage.startsWith("https://")
+        ? rawImage
+        : `${baseUrl}/api/og?slug=${slug}`)
+    : "";
+
   const images = shareImageUrl
     ? [{ url: shareImageUrl, width: 1200, height: 630, alt: store.name }]
     : [];
@@ -108,6 +129,7 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
     : undefined;
 
   return {
+    metadataBase: new URL(baseUrl),
     title,
     description,
     keywords,
@@ -116,6 +138,7 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
       description,
       type: "website",
       siteName: store.name,
+      url: `${baseUrl}/${slug}`,
       images
     },
     twitter: {
@@ -178,8 +201,12 @@ export default async function StorefrontPage({ params, searchParams }: Props) {
       "@type": "PostalAddress",
       streetAddress: store.address
     },
-    ...(store.logoUrl ? { image: store.logoUrl } : {}),
-    ...(serializedStore.settings.seo.ogImageUrl ? { logo: serializedStore.settings.seo.ogImageUrl } : {}),
+    ...(serializedStore.settings.seo.ogImageUrl || store.logoUrl
+      ? {
+          image: `${getRequestBaseUrl()}/api/og?slug=${slug}`,
+          logo: `${getRequestBaseUrl()}/api/og?slug=${slug}`
+        }
+      : {}),
     hasOfferCatalog: {
       "@type": "OfferCatalog",
       name: `Catálogo de Produtos - ${store.name}`,

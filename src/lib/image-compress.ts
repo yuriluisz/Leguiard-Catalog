@@ -5,18 +5,19 @@
 export async function compressImage(
   input: File | Blob | string,
   maxDimension = 600,
-  quality = 0.85
+  quality = 0.85,
+  outputFormat: "image/webp" | "image/jpeg" = "image/webp"
 ): Promise<string> {
   // If string, handle directly
   if (typeof input === "string") {
-    if (input.startsWith("data:image/svg+xml") || (input.startsWith("data:") && input.length < 40 * 1024)) {
+    if (input.startsWith("data:image/svg+xml") || (input.startsWith("data:") && input.length < 40 * 1024 && outputFormat === "image/webp")) {
       return input;
     }
-    return compressFromSrc(input, maxDimension, quality);
+    return compressFromSrc(input, maxDimension, quality, outputFormat);
   }
 
-  // If already SVG or very small, convert directly to data URI
-  if (input.type === "image/svg+xml" || input.size < 30 * 1024) {
+  // If already SVG or very small (and webp requested), convert directly to data URI
+  if ((input.type === "image/svg+xml" || input.size < 30 * 1024) && outputFormat === "image/webp") {
     return fileToDataUri(input);
   }
 
@@ -24,7 +25,7 @@ export async function compressImage(
     const reader = new FileReader();
     reader.onload = (event) => {
       const src = event.target?.result as string;
-      compressFromSrc(src, maxDimension, quality)
+      compressFromSrc(src, maxDimension, quality, outputFormat)
         .then(resolve)
         .catch(reject);
     };
@@ -33,7 +34,12 @@ export async function compressImage(
   });
 }
 
-function compressFromSrc(src: string, maxDimension: number, quality: number): Promise<string> {
+function compressFromSrc(
+  src: string,
+  maxDimension: number,
+  quality: number,
+  outputFormat: "image/webp" | "image/jpeg" = "image/webp"
+): Promise<string> {
   return new Promise((resolve) => {
     const img = new Image();
     img.crossOrigin = "anonymous";
@@ -62,6 +68,11 @@ function compressFromSrc(src: string, maxDimension: number, quality: number): Pr
       }
 
       ctx.drawImage(img, 0, 0, width, height);
+
+      if (outputFormat === "image/jpeg") {
+        resolve(canvas.toDataURL("image/jpeg", quality));
+        return;
+      }
 
       // Try webp first, fallback to jpeg
       let dataUrl = canvas.toDataURL("image/webp", quality);
