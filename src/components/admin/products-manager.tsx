@@ -26,6 +26,7 @@ import { formatBRL } from "@/lib/format";
 import { getUnitBadge } from "@/lib/pricing";
 import { compressImage } from "@/lib/image-compress";
 import { searchProducts } from "@/lib/search";
+import { ImageDropzone } from "./image-dropzone";
 
 type Category = {
   id: string;
@@ -202,28 +203,46 @@ export function ProductsManager() {
     );
   }, []);
 
-  async function uploadImage(file: File) {
-    if (file.size > 5 * 1024 * 1024) {
-      throw new Error("A imagem deve ter no máximo 5MB");
-    }
+  async function handleImageChange(dataUri: string) {
+    setForm((prev) => ({ ...prev, imageUrl: dataUri }));
 
-    try {
-      const dataUri = await compressImage(file, 800, 0.85);
-      setForm((prev) => ({ ...prev, imageUrl: dataUri }));
-
-      if (editingId) {
+    if (editingId) {
+      try {
         await fetchJson(`/api/products/${editingId}`, {
           method: "PATCH",
           json: { imageUrl: dataUri }
         });
         await loadData();
-        setMessage({ text: "Imagem processada e salva no produto!", type: "success" });
-        return;
+        setMessage({ text: "Foto atualizada e salva no produto com sucesso!", type: "success" });
+      } catch (err) {
+        setMessage({
+          text: err instanceof Error ? err.message : "Falha ao salvar a foto no produto",
+          type: "error"
+        });
       }
+      return;
+    }
 
-      setMessage({ text: "Imagem processada. Salve o produto para confirmar.", type: "success" });
-    } catch {
-      throw new Error("Falha ao processar a imagem do produto");
+    setMessage({ text: "Foto anexada. Salve o produto para confirmar as alterações.", type: "success" });
+  }
+
+  async function handleImageRemove() {
+    setForm((prev) => ({ ...prev, imageUrl: "" }));
+
+    if (editingId) {
+      try {
+        await fetchJson(`/api/products/${editingId}`, {
+          method: "PATCH",
+          json: { imageUrl: null }
+        });
+        await loadData();
+        setMessage({ text: "Foto removida do produto com sucesso!", type: "success" });
+      } catch (err) {
+        setMessage({
+          text: err instanceof Error ? err.message : "Falha ao remover a foto",
+          type: "error"
+        });
+      }
     }
   }
 
@@ -629,37 +648,15 @@ export function ProductsManager() {
               </div>
             )}
 
-            {/* Image Upload */}
+            {/* Image Upload Dropzone & Ctrl+V */}
             <div className="sm:col-span-2 lg:col-span-3">
-              <label className="block text-xs font-bold text-zinc-700 mb-1">Foto do Produto</label>
-              <div className="flex items-center gap-3">
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    if (!file) return;
-                    void uploadImage(file).catch((err: Error) =>
-                      setMessage({ text: err.message, type: "error" })
-                    );
-                  }}
-                  className="text-xs text-zinc-500 file:mr-3 file:py-2 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-zinc-100 file:text-zinc-700 hover:file:bg-zinc-200"
-                />
-                {form.imageUrl && (
-                  <div className="flex items-center gap-2">
-                    <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-xl border border-zinc-200">
-                      <Image src={form.imageUrl} alt="Foto" fill className="object-cover" unoptimized />
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => setForm((prev) => ({ ...prev, imageUrl: "" }))}
-                      className="text-[11px] font-bold text-red-600 hover:text-red-700 underline"
-                    >
-                      Remover foto
-                    </button>
-                  </div>
-                )}
-              </div>
+              <ImageDropzone
+                value={form.imageUrl}
+                onChange={handleImageChange}
+                onRemove={handleImageRemove}
+                disabled={saving}
+                listenGlobalPaste={isFormOpen}
+              />
             </div>
 
             {/* Flags */}
