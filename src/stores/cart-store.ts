@@ -48,11 +48,13 @@ export const useCartStore = create<CartState>()(
                 return {
                   ...current,
                   maxQuantity: max,
+                  imageUrl: item.imageUrl ?? current.imageUrl,
                   quantity: nextQuantity,
                   subtotal: calculateItemSubtotal(current.unitType, current.unitPrice, nextQuantity)
                 };
               })
             : [
+                ...currentItems,
                 item.maxQuantity && item.quantity > item.maxQuantity
                   ? {
                       ...item,

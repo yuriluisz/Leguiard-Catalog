@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { X, Trash2, Plus, Minus, ShoppingBag, Send, AlertCircle } from "lucide-react";
+import Image from "next/image";
+import { X, Trash2, Plus, Minus, ShoppingBag, Send, AlertCircle, Package } from "lucide-react";
 
 import { formatBRL } from "@/lib/format";
 import { fetchJson } from "@/lib/http";
@@ -14,7 +15,6 @@ type CartDrawerProps = {
   onClose: () => void;
   store: StoreRecord;
   cartItems: CartItem[];
-  onAddItem: (item: CartItem) => void;
   onUpdateQuantity?: (productId: string, quantity: number) => void;
   onRemoveItem: (productId: string, quantity?: number) => void;
   onClearCart: () => void;
@@ -34,7 +34,6 @@ export function CartDrawer({
   onClose,
   store,
   cartItems,
-  onAddItem,
   onUpdateQuantity,
   onRemoveItem,
   onClearCart,
@@ -184,20 +183,40 @@ export function CartDrawer({
                         key={item.productId}
                         className="flex items-center justify-between gap-3 rounded-2xl border border-zinc-100 bg-zinc-50/70 p-3"
                       >
-                        <div className="min-w-0 flex-1">
-                          <p className="truncate text-xs font-bold text-zinc-900">{item.productName}</p>
-                          <p className="text-[11px] text-zinc-500">
-                            {formatBRL(item.unitPrice)} / {item.unitType === "KG" ? "100g" : "un"}
-                          </p>
-                          <div className="flex items-center gap-2 mt-1">
-                            <p className="text-xs font-extrabold text-zinc-900">
-                              {formatBRL(item.subtotal)}
-                            </p>
-                            {Boolean(item.maxQuantity) && (
-                              <span className="text-[9px] font-bold text-amber-800 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200">
-                                Máx: {item.maxQuantity}{item.unitType === "KG" ? "g" : " un"}
-                              </span>
+                        <div className="flex items-center gap-3 min-w-0 flex-1">
+                          {/* Thumbnail da imagem */}
+                          <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-xl bg-zinc-100 border border-zinc-200/80">
+                            {item.imageUrl ? (
+                              <Image
+                                src={item.imageUrl}
+                                alt={item.productName}
+                                fill
+                                unoptimized
+                                className="object-cover"
+                                sizes="48px"
+                              />
+                            ) : (
+                              <div className="flex h-full w-full items-center justify-center text-zinc-300">
+                                <Package className="h-5 w-5 stroke-[1.5]" />
+                              </div>
                             )}
+                          </div>
+
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-xs font-bold text-zinc-900">{item.productName}</p>
+                            <p className="text-[11px] text-zinc-500">
+                              {formatBRL(item.unitPrice)} / {item.unitType === "KG" ? "100g" : "un"}
+                            </p>
+                            <div className="flex items-center gap-2 mt-1">
+                              <p className="text-xs font-extrabold text-zinc-900">
+                                {formatBRL(item.subtotal)}
+                              </p>
+                              {Boolean(item.maxQuantity) && (
+                                <span className="text-[9px] font-bold text-amber-800 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200">
+                                  Máx: {item.maxQuantity}{item.unitType === "KG" ? "g" : " un"}
+                                </span>
+                              )}
+                            </div>
                           </div>
                         </div>
 

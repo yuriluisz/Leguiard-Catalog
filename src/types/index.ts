@@ -61,6 +61,7 @@ export type CartItem = {
   quantity: number;
   subtotal: number;
   maxQuantity?: number | null;
+  imageUrl?: string | null;
 };
 
 export type CheckoutPayload = {

@@ -207,7 +207,9 @@ export const checkoutSchema = z.object({
         unitType: z.enum(["UN", "KG"]),
         unitPrice: z.number().positive(),
         quantity: z.number().positive(),
-        subtotal: z.number().nonnegative()
+        subtotal: z.number().nonnegative(),
+        maxQuantity: z.number().nullable().optional(),
+        imageUrl: z.string().nullable().optional()
       })
     )
     .min(1)

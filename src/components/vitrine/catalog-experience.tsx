@@ -175,6 +175,7 @@ export function CatalogExperience({
       unitPrice,
       quantity,
       maxQuantity: product.maxQuantity ? Number(product.maxQuantity) : null,
+      imageUrl: product.imageUrl,
       subtotal
     };
 
@@ -201,6 +202,7 @@ export function CatalogExperience({
       unitPrice,
       quantity: qty,
       maxQuantity: product.maxQuantity ? Number(product.maxQuantity) : null,
+      imageUrl: product.imageUrl,
       subtotal
     };
 
@@ -333,7 +335,6 @@ export function CatalogExperience({
         onClose={() => setCartOpen(false)}
         store={store}
         cartItems={cartItems}
-        onAddItem={(item) => addItem(slug, item)}
         onUpdateQuantity={(productId, qty) => updateQuantity(slug, productId, qty)}
         onRemoveItem={(productId) => removeItem(slug, productId)}
         onClearCart={() => clearStore(slug)}
